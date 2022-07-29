@@ -1975,3 +1975,122 @@ summary(among.b.7)
 among.b.7.emm<- emmeans(among.b.7, "Pos", type='response')
 plot(among.b.7.emm)
 emmeans(among.b.7, "Pos", type='response')
+
+
+#############################################################################
+#
+# Functional Regression on within vs. among variatin
+#
+dat<- read.csv("vicia_final_data.csv")
+
+
+
+dat$PlantID<- as.factor(dat$PlantID)
+dat$Branch<- as.factor(dat$Branch)
+dat$Pos<- as.factor(dat$Pos)
+
+# Position OR Branch 1
+dat2<- subset(dat, Branch==2)
+
+#first<- subset(dat2, Branch ==1 & Branch ==2 | Branch ==3 | Branch==4 | Branch ==5 | Branch==6 | Branch==7)
+
+#seed set per plant (response)
+seed<- aggregate(dat2$seeds, by=list(dat2$PlantID), sum)
+
+seed$Group.1<- NULL
+
+#calcualte total flower number
+flw.no<- aggregate(as.numeric(dat2$Pos), by=list(dat2$PlantID), max)
+flw.no$Group.1<- NULL
+
+flw.no.vd<-as.matrix(flw.no)
+flw.no.vd<- as.vector(flw.no.vd)
+
+
+#calculate total number of branches
+
+bno<- dat2[c("PlantID", "Branch")]
+
+bno$Branch<- as.numeric(bno$Branch)
+
+branch.no<- aggregate(bno$Branch, by=list(bno$PlantID), max)
+branch.no$Group.1<- NULL
+
+branch.no<- as.matrix(branch.no)
+branch.no<- as.vector(branch.no)
+
+b.no<- as.data.frame(branch.no)
+
+######
+# Prepare functional predictors
+B<- dat2[c("PlantID","Pos", "B")]
+
+FL<- dat2[c("PlantID","Pos", "FL")]
+
+FD<- dat2[c("PlantID","Pos", "FD")]
+
+# Reshape into long-format matrix
+long<- reshape(B, timevar="Pos", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+b<-long
+
+long<- reshape(FL, timevar="Pos", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+FL<-long
+
+long<- reshape(FD, timevar="Pos", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+FD<-long
+
+#load Refund
+library(refund)
+
+
+
+
+fit<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+           ,family='poisson')
+
+fit1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+            ,family='nb')
+
+fit2<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+           ,family='gaussian')
+
+AIC(fit, fit1, fit2)# nb
+
+summary(fit1)
+
+fit1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+           ,family='nb')
+
+fit1.1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+           + unlist(flw.no),family='nb')
+
+fit1.2<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+           + unlist(flw.no) + unlist(b.no),family='nb')
+
+fit1.3<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+             + unlist(b.no),family='nb')
+
+
+AIC(fit1, fit1.1, fit1.2, fit1.3)# no cov
+
+summary(fit1.2)
+
+fit<- coef(fit1.3)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$b.arg * fit$b.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$b.arg, fit$value, type="l", main="relative")
+
+write.table(fit, "banner_branch2_branchNo.csv", sep=",")
