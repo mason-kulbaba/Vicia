@@ -2021,6 +2021,7 @@ branch.no<- as.vector(branch.no)
 
 b.no<- as.data.frame(branch.no)
 
+
 ######
 # Prepare functional predictors
 B<- dat2[c("PlantID","Pos", "B")]
@@ -2028,6 +2029,7 @@ B<- dat2[c("PlantID","Pos", "B")]
 FL<- dat2[c("PlantID","Pos", "FL")]
 
 FD<- dat2[c("PlantID","Pos", "FD")]
+
 
 # Reshape into long-format matrix
 long<- reshape(B, timevar="Pos", idvar=c("PlantID"), direction = "wide")
@@ -2054,7 +2056,7 @@ library(refund)
 
 
 
-fit<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
+fit<- pfr(seed ~ lf.vd(FL, vd=bnumb,basistype = "te", transform='standardized')
            ,family='poisson')
 
 fit1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
@@ -2094,3 +2096,265 @@ plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$b.arg, fit$value, type="l", main="relative")
 
 write.table(fit, "banner_branch2_branchNo.csv", sep=",")
+
+
+############################################################################
+#
+# full complement of data, branch = variable domain 
+
+dat<- read.csv("vicia_final_data.csv")
+
+dat$PlantID<- as.factor(dat$PlantID)
+dat$Branch<- as.factor(dat$Branch)
+dat$Pos<- as.factor(dat$Pos)
+
+#seed set per plant (response)
+seed<- aggregate(dat$seeds, by=list(dat$PlantID), sum)
+
+seed$Group.1<- NULL
+
+#calcualte total flower number
+flw.no<- aggregate(as.numeric(dat$Pos), by=list(dat$PlantID), max)
+flw.no$Group.1<- NULL
+
+flw.no.vd<-as.matrix(flw.no)
+flw.no.vd<- as.vector(flw.no.vd)
+
+
+#calculate total number of branches
+
+bno<- dat[c("PlantID", "Branch")]
+
+bno$Branch<- as.numeric(bno$Branch)
+
+branch.no<- aggregate(bno$Branch, by=list(bno$PlantID), max)
+branch.no$Group.1<- NULL
+
+branch.no<- as.matrix(branch.no)
+branch.no<- as.vector(branch.no)
+
+b.no<- as.data.frame(branch.no)
+
+
+######
+# Prepare functional predictors
+B<- dat[c("PlantID","PosSeq", "B")]
+
+FL<- dat[c("PlantID","PosSeq", "FL")]
+
+FD<- dat[c("PlantID","PosSeq", "FD")]
+
+size<- dat[c("PlantID", "PosSeq", "flw_vol")]
+
+
+# Reshape into long-format matrix
+long<- reshape(B, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+b<-long
+
+long<- reshape(FL, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+FL<-long
+
+long<- reshape(FD, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+FD<-long
+
+
+long<- reshape(size, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+flw.size<-long
+
+#load Refund
+library(refund)
+
+
+
+
+fit<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+          ,family='poisson')
+
+fit1<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+           ,family='nb')
+
+fit2<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+           ,family='gaussian')
+
+AIC(fit, fit1, fit2)# nb
+
+
+
+summary(fit1)
+
+
+
+
+#### spline type
+fit<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+          ,family='nb')
+
+fit1<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "s", transform='standardized')
+           ,family='nb')
+
+fit2<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "t2", transform='standardized')
+           ,family='nb')
+
+AIC(fit, fit1, fit2)# te basistype 
+
+summary(fit)
+
+
+fit1<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+           ,family='nb')
+
+fit1.1<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no),family='nb')
+
+fit1.1a<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+             , offset= unlist(flw.no),family='nb')
+
+fit1.2<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no) + unlist(b.no),family='nb')
+
+fit1.2a<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(b.no), offset=unlist(flw.no) , family='nb')
+
+fit1.3<- pfr(seed ~ lf.vd(FL, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(b.no),family='nb')
+
+AIC(fit1, fit1.1, fit1.1a, fit1.2, fit1.2a, fit1.3)
+
+summary(fit1)
+
+
+fit<- coef(fit1)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$FL.arg * fit$FL.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FL.arg, fit$value, type="l", main="relative")
+
+write.table(fit, "FL_vd_branchno_noCov.csv", sep=",")
+
+
+############
+# Banner
+fit1<- pfr(seed ~ lf.vd(b, vd=branch.no,basistype = "te", transform='standardized')
+           ,family='nb')
+
+fit1.1<- pfr(seed ~ lf.vd(b, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no),family='nb')
+
+fit1.1a<- pfr(seed ~ lf.vd(b, vd=branch.no,basistype = "te", transform='standardized')
+              , offset= unlist(flw.no),family='nb')
+
+fit1.2<- pfr(seed ~ lf.vd(b, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no) + unlist(b.no),family='nb')
+
+fit1.2a<- pfr(seed ~ lf.vd(b, vd=branch.no,basistype = "te", transform='standardized')
+              + unlist(b.no), offset=unlist(flw.no) , family='nb')
+
+fit1.3<- pfr(seed ~ lf.vd(b, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(b.no),family='nb')
+
+AIC(fit1, fit1.1, fit1.1a, fit1.2, fit1.2a, fit1.3)
+
+summary(fit1)
+
+
+fit<- coef(fit1)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$b.arg * fit$b.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$b.arg, fit$value, type="l", main="relative")
+
+write.table(fit, "B_vd_branchno_noCov.csv", sep=",")
+
+
+
+############
+# Flower diameter
+fit1<- pfr(seed ~ lf.vd(FD, vd=branch.no,basistype = "te", transform='standardized')
+            ,family='nb')
+
+fit1.1<- pfr(seed ~ lf.vd(FD, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no),family='nb')
+
+fit1.1a<- pfr(seed ~ lf.vd(FD, vd=branch.no,basistype = "te", transform='standardized')
+              , offset= unlist(flw.no),family='nb')
+
+fit1.2<- pfr(seed ~ lf.vd(FD, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no) + unlist(b.no),family='nb')
+
+fit1.2a<- pfr(seed ~ lf.vd(FD, vd=branch.no,basistype = "te", transform='standardized')
+              + unlist(b.no), offset=unlist(flw.no) , family='nb')
+
+fit1.3<- pfr(seed ~ lf.vd(FD, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(b.no),family='nb')
+
+AIC(fit1, fit1.1, fit1.1a, fit1.2, fit1.2a, fit1.3)
+
+summary(fit1)
+
+
+fit<- coef(fit1)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$FD.arg * fit$FD.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FD.arg, fit$value, type="l", main="relative")
+
+write.table(fit, "B_vd_branchno_noCov.csv", sep=",")
+
+
+
+############
+# Flower volume
+fit1<- pfr(seed ~ lf.vd(flw.size, vd=branch.no,basistype = "te", transform='standardized')
+           ,family='nb')
+
+fit1.1<- pfr(seed ~ lf.vd(flw.size, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no),family='nb')
+
+fit1.1a<- pfr(seed ~ lf.vd(flw.size, vd=branch.no,basistype = "te", transform='standardized')
+              , offset= unlist(flw.no),family='nb')
+
+fit1.2<- pfr(seed ~ lf.vd(flw.size, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(flw.no) + unlist(b.no),family='nb')
+
+fit1.2a<- pfr(seed ~ lf.vd(flw.size, vd=branch.no,basistype = "te", transform='standardized')
+              + unlist(b.no), offset=unlist(flw.no) , family='nb')
+
+fit1.3<- pfr(seed ~ lf.vd(flw.size, vd=branch.no,basistype = "te", transform='standardized')
+             + unlist(b.no),family='nb')
+
+AIC(fit1, fit1.1, fit1.1a, fit1.2, fit1.2a, fit1.3)
+
+summary(fit1)
+
+
+fit<- coef(fit1)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$flw.size.arg * fit$flw.size.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$flw.size.arg, fit$value, type="l", main="relative")
+
+write.table(fit, "Volume_vd_branchno_noCov.csv", sep=",")
