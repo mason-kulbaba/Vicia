@@ -1,5 +1,9 @@
 
+#home computer
 setwd("C:/Users/mason/Dropbox/git/Vicia/")
+
+#work laptop
+setwd("C:/Users/mkulbaba/Dropbox/git/Vicia")
 
 dat<- read.csv("vicia_final_data.csv")
 
@@ -21,6 +25,32 @@ dat2<- dat[!is.na(dat$B), ]
 dat2$PlantID<- as.factor(dat2$PlantID)
 dat2$Branch<- as.factor(dat2$Branch)
 dat2$Pos<- as.factor(dat2$Pos)
+dat2$PosSeq<- as.factor(dat2$PosSeq)
+
+# Summary statistics for experimental plants. 
+
+# Fruit/seed set
+
+sum(dat2$FlwFate)/length(dat2$FlwFate)
+  
+# 721 flws, 127 fruits = 0.17614 fruit set %
+
+#number of plants setting fruit
+frt.plant<- aggregate(dat2$FlwFate, by=list(dat2$PlantID), sum) # 35 of 40 set at least 1 fruit
+
+#mean fruit per plant
+mean(frt.plant$x)# 3.2 fruits/plant
+
+#seeds/fruit
+sum(dat2$seeds)/sum(dat2$FlwFate)# 3.5112 seeds/fruit 
+
+
+#seeds per plant
+seed.plant<- aggregate(dat2$seeds, by=list(dat2$PlantID), sum)
+
+#flowers per plants
+flws<- aggregate(as.numeric(dat2$PosSeq), by=list(dat2$PlantID), max)
+
 
 # calculate total number of ovules
 
@@ -461,12 +491,11 @@ fit.1b<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standard
              + unlist(flw.no)  ,family='poisson')
 
 fit.1c<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-             +unlist(branch.no)
-            ,family='poisson')
-
+             + unlist(branch.no)
+             ,family='poisson')
 
 fit.1d<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-             +unlist(branch.no) + unlist(log(flw.no)),
+             +unlist(branch.no) + unlist(flw.no),
              family='poisson')
 
 fit.1e<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized') # interaction term
@@ -483,6 +512,8 @@ fit.1g<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standard
 fit.1h<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized') +unlist(log(branch.no))
              , offset= unlist(flw.no)  ,family='nb')
 
+AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d, fit.1e, fit.1f, fit.1g, fit.1h) # fit.1g smallest AIC
+
 
 
 summary(fit.1a)
@@ -495,7 +526,6 @@ summary(fit.1g)
 summary(fit.1h)
 
 
-AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d, fit.1e, fit.1f, fit.1g, fit.1h) # fit.1g smallest AIC
 
 #output of results
 fit<- coef(fit.1h)   #Note: are these transformed?
@@ -562,6 +592,9 @@ p<- ggplot(fit2, aes(x= banner.arg, y= value, color=Flower_Number)) +
   fit.1b<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
                + unlist(branch.no)
                ,family='poisson')
+  
+  
+  
   
   fit.1c<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
                + unlist(branch.no) + unlist(flw.no)
@@ -819,8 +852,46 @@ plot(m)
 
 setwd("C:/Users/mason/Dropbox/git/students/Getsemani Arteaga2/")
 
+dat<- read.csv("vicia_final_data.csv")
+dat2<- dat[!is.na(dat$B), ]
+
+dat2$PlantID<- as.factor(dat2$PlantID)
+dat2$Branch<- as.factor(dat2$Branch)
+#dat2$PosSeq<- as.factor(dat2$PosSeq)
 
 fin<- read.csv("vicia_reduced.csv")
+
+
+# Quick spline check
+library(mgcv)
+# Build the model
+
+#The term s(PosSeq) tells the gam() function to find the "best" knots 
+# for a spline term.
+
+
+model.gam <- gam(FD ~ s(PosSeq) + Branch + PlantID, data = dat2)
+
+summary(model.gam)
+
+smooth<- model.gam$smooth
+
+smooth$knots[[1]] # NOTE: you did not specify bs argument in s(), therefore the default basis: 
+                  #  bs = 'tp' will be used. 'tp', short for thin-plate regression spline, is 
+                  # not a smooth class that has conventional knots. Thin plate spline does have 
+                  # knots: it places knots exactly at data points.
+
+# Make predictions
+predictions <- predict(model.gam)
+
+# plot the gam model
+gam.plot<- ggplot(dat2, aes(PosSeq, B))  +
+  geom_point(aes(colour = Branch)) +
+  geom_smooth(method = gam, formula = y ~ s(x))
+
+gam.plot
+
+
 
 fin$PlantID<- as.factor(fin$PlantID)
 fin$Branch<- as.factor(fin$Branch)
@@ -2036,7 +2107,7 @@ long<- reshape(B, timevar="Pos", idvar=c("PlantID"), direction = "wide")
 long$PlantID<- NULL
 long<- as.matrix(long)
 
-b<-long
+B<-long
 
 long<- reshape(FL, timevar="Pos", idvar=c("PlantID"), direction = "wide")
 long$PlantID<- NULL
@@ -2056,7 +2127,7 @@ library(refund)
 
 
 
-fit<- pfr(seed ~ lf.vd(FL, vd=bnumb,basistype = "te", transform='standardized')
+fit<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
            ,family='poisson')
 
 fit1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
@@ -2073,7 +2144,7 @@ fit1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardiz
            ,family='nb')
 
 fit1.1<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
-           + unlist(flw.no),family='nb')
+           + unlist(log(flw.no)),family='nb')
 
 fit1.2<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standardized')
            + unlist(flw.no) + unlist(b.no),family='nb')
@@ -2084,7 +2155,7 @@ fit1.3<- pfr(seed ~ lf.vd(FL, vd=flw.no.vd,basistype = "te", transform='standard
 
 AIC(fit1, fit1.1, fit1.2, fit1.3)# no cov
 
-summary(fit1.2)
+summary(fit1.1)
 
 fit<- coef(fit1.3)   #Note: are these transformed?
 
@@ -2095,7 +2166,7 @@ plot(fit$x, fit$value, type="l", main="absolute")
 
 plot(fit$b.arg, fit$value, type="l", main="relative")
 
-write.table(fit, "banner_branch2_branchNo.csv", sep=",")
+#write.table(fit, "banner_branch2_branchNo.csv", sep=",")
 
 
 ############################################################################
@@ -2244,7 +2315,7 @@ plot(fit$x, fit$value, type="l", main="absolute")
 
 plot(fit$FL.arg, fit$value, type="l", main="relative")
 
-write.table(fit, "FL_vd_branchno_noCov.csv", sep=",")
+#write.table(fit, "FL_vd_branchno_noCov.csv", sep=",")
 
 
 ############
@@ -2281,7 +2352,7 @@ plot(fit$x, fit$value, type="l", main="absolute")
 
 plot(fit$b.arg, fit$value, type="l", main="relative")
 
-write.table(fit, "B_vd_branchno_noCov.csv", sep=",")
+#write.table(fit, "B_vd_branchno_noCov.csv", sep=",")
 
 
 
@@ -2319,7 +2390,7 @@ plot(fit$x, fit$value, type="l", main="absolute")
 
 plot(fit$FD.arg, fit$value, type="l", main="relative")
 
-write.table(fit, "B_vd_branchno_noCov.csv", sep=",")
+#write.table(fit, "B_vd_branchno_noCov.csv", sep=",")
 
 
 
@@ -2357,4 +2428,7 @@ plot(fit$x, fit$value, type="l", main="absolute")
 
 plot(fit$flw.size.arg, fit$value, type="l", main="relative")
 
-write.table(fit, "Volume_vd_branchno_noCov.csv", sep=",")
+#write.table(fit, "Volume_vd_FlwNo_noCov_.csv", sep=",")
+
+
+
