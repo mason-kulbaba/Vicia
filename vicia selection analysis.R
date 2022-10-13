@@ -7,6 +7,21 @@ setwd("C:/Users/mkulbaba/Dropbox/git/Vicia")
 
 dat<- read.csv("vicia_final_data.csv")
 
+#################
+#
+# mean se seeds per branch
+
+tot.seed<- aggregate(dat$seeds, by=list(dat$Branch), sum)
+
+max<- sum(dat$seeds)
+
+tot.seed$prop<- (tot.seed$x/max)*100
+
+colnames(tot.seed)<- c("Branch", "Tot.Seeds", "Prop")
+
+write.table(tot.seed, "C:/Users/mkulbaba/Dropbox/git/Vicia/Results and Figures/tot_prop_seeds_by_branch.csv",
+            sep=",", row.names = F)
+
 #correlation among traits
 xmat<-as.matrix(cbind(dat$FD, dat$FL, dat$B))
 
@@ -2431,4 +2446,75 @@ plot(fit$flw.size.arg, fit$value, type="l", main="relative")
 #write.table(fit, "Volume_vd_FlwNo_noCov_.csv", sep=",")
 
 
+############### CV
 
+#from top of script
+head(dat2)
+
+
+# isolate just first five flower on first five branches
+
+
+b<- subset(dat2, as.numeric(Branch) < 6)
+b<- droplevels(b)
+
+bf<- subset(b, as.numeric(Pos) < 6)
+bf<-droplevels(bf)
+
+library(goeveg)  
+    
+ #data for among branch constant flower position
+f1<- subset(bf, as.numeric(Pos) ==1)
+f2<- subset(bf, as.numeric(Pos) ==2)
+f3<- subset(bf, as.numeric(Pos) ==3)
+f4<- subset(bf, as.numeric(Pos) ==4)
+f5<- subset(bf, as.numeric(Pos) ==5)
+
+#FL
+cv(f1$FL)
+cv(f2$FL)
+cv(f3$FL)
+cv(f4$FL)
+cv(f5$FL)
+
+#FD
+cv(f1$FD)
+cv(f2$FD)
+cv(f3$FD)
+cv(f4$FD)
+cv(f5$FD)
+
+#B
+cv(f1$B)
+cv(f2$B)
+cv(f3$B)
+cv(f4$B)
+cv(f5$B)
+
+#data for within branch across flower position
+b1<- subset(bf, as.numeric(Branch) ==1)
+b2<- subset(bf, as.numeric(Branch) ==2)
+b3<- subset(bf, as.numeric(Branch) ==3)
+b4<- subset(bf, as.numeric(Branch) ==4)
+b5<- subset(bf, as.numeric(Branch) ==5)
+
+#FL
+cv(b1$FL)
+cv(b2$FL)
+cv(b3$FL)
+cv(b4$FL)
+cv(b5$FL)
+
+#FD
+cv(b1$FD)
+cv(b2$FD)
+cv(b3$FD)
+cv(b4$FD)
+cv(b5$FD)
+
+#B
+cv(b1$B)
+cv(b2$B)
+cv(b3$B)
+cv(b4$B)
+cv(b5$B)
