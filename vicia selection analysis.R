@@ -7,6 +7,42 @@ setwd("C:/Users/mkulbaba/Dropbox/git/Vicia")
 
 dat<- read.csv("vicia_final_data.csv")
 
+# mean and variance calcls
+
+dat2<- dat[!is.na(dat$FL), ]
+
+fl.mean<- aggregate(dat2$FL, by=list(dat2$PlantID), mean)
+fl.mean$Group.1<- NULL
+
+fl.var<- aggregate(dat2$FL, by=list(dat2$PlantID), var)
+fl.var$Group.1<- NULL
+
+dat2<- dat[!is.na(dat$FD), ]
+
+fd.mean<- aggregate(dat2$FD, by=list(dat2$PlantID), mean)
+fd.mean$Group.1<-NULL
+
+fd.var<- aggregate(dat2$FD, by=list(dat2$PlantID), var)
+fd.var$Group.1<- NULL
+
+dat2<- dat[!is.na(dat$B), ]
+
+b.mean<- aggregate(dat2$B, by=list(dat2$PlantID), mean)
+b.mean$Group.1<-NULL
+
+b.var<- aggregate(dat2$B, by=list(dat2$PlantID), var)
+b.var$Group.1<- NULL
+
+
+var.mean<- cbind(fl.mean, fl.var, fd.mean, fd.var, b.mean, b.var)
+
+var.mean
+
+colnames(var.mean)<- c("fl.mean", "fl.var", "fd.mean", "fd.var", "b.mean", "b.var")
+
+write.table(var.mean, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/var_mean.csv",
+            sep=",", quote = F)
+
 #################
 #
 # mean se seeds per branch
@@ -477,10 +513,30 @@ seqpos<- as.vector(seqpos)
 library(refund)
 
 
-fit.1<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "te", transform='standardized')
-            ,family='poisson')
+fit.1<- pfr(seed ~ lf.vd(banner, vd=seqpos, transform='standardized')
+           + unlist(flw.no),family='ziP')
+
+fit.1.1<- pfr(seed ~ lf.vd(banner, vd=unlist(branch.no), transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+AIC(fit.1, fit.1.1)
 
 summary(fit.1)
+summary(fit.1.1)
+
+#output of results
+fit<- coef(fit.1.1)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$FL.arg * fit$FL.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FL.arg, fit$value, type="l", main="relative")
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/final_full/fl_final_TE.csv",
+            sep=",")
+
 
 fit.2<- pfr(seed ~ lf.vd(banner, vd=seqpos, basistype = "t2", transform='standardized')
             , family='poisson')
@@ -544,7 +600,7 @@ summary(fit.1h)
 
 
 #output of results
-fit<- coef(fit.1h)   #Note: are these transformed?
+fit<- coef(fit.1f)   #Note: are these transformed?
 
 #make absolute frstart date
 fit$x<- fit$banner.arg * fit$banner.vd
@@ -2614,7 +2670,7 @@ dat$b_num<- as.numeric(dat$Branch)
 # load data with only first 5 branches and first 5 flowers
 #five<- read.csv("vicia_five_five.csv")
 
-
+library(refund)
 #########################3
 #
 # Compare patterns of selection within branches 
@@ -2625,7 +2681,8 @@ dat2<- dat[!is.na(dat$B), ]
 
 dat<-dat2
 
-b1<- subset(dat, Branch ==2)
+b1<- subset(dat, Branch ==1)
+b3<- subset(dat, Branch ==3)
 
 
 # Branch 1
@@ -2668,19 +2725,19 @@ B.1<-long
 
 # Banner Branch 1 (all plants)
 fit<- pfr(seed.b1 ~ lf.vd(B.1, vd=B.1, basistype = "te", transform='standardized')
-          ,family='nb')
+          ,family='ziP')
 
 fit1<- pfr(seed.b1 ~ lf.vd(B.1,vd=unlist(flw.no.b1), basistype = "te", transform='standardized')
-           ,family='nb')
+           ,family='ziP')
 
 fit1.1<- pfr(seed.b1 ~ lf.vd(B.1,vd=unlist(flw.no.b1),k=4, basistype = "te", transform='standardized')
-           + unlist(branch.flw),family='nb')
+           + unlist(branch.flw),family='ziP')
 
 fit2<- pfr(seed.b1 ~ lf.vd(B.1, vd=unlist(branch.flw) , basistype = "te", transform='standardized')
-           ,family='nb')
+           ,family='ziP')
 
 fit3<- pfr(seed.b1 ~ lf.vd(B.1, vd=unlist(branch.flw),, basistype = "te", transform='standardized') + unlist(b.no),
-           family='nb')
+           family='ziP')
 
 AIC(fit, fit1, fit1.1,fit2, fit3)# te basistype 
 
@@ -2703,6 +2760,10 @@ banner3<- b3[c("PlantID","Pos", "B")]
 seed.b3<- aggregate(b3$seeds, by=list(b3$PlantID), sum)
 seed.b3$Group.1<- NULL
 
+b.no<- aggregate(b3$b_num, by=list(b3$PlantID), max)
+b.no$Group.1<- NULL
+b.no<- as.data.frame(b.no)
+
 flw.no.b3<- aggregate(b3$PosSeq, by=list(b3$PlantID), max)
 flw.no.b3$Group.1<-NULL
 
@@ -2720,14 +2781,14 @@ B.3<-long
 
 
 # Banner Branch 3 (all plants)
-fit<- pfr(seed.b3 ~ lf.vd(B.3, vd=unlist(flw.no.b3),k=4, basistype = "te", transform='standardized') 
-          ,family='nb')
+fit<- pfr(seed.b3 ~ lf.vd(B.3, vd=unlist(b.no) ,k=4, basistype = "te", transform='standardized')
+         ,family='ziP')
 
 fit1<- pfr(seed.b3 ~ lf.vd(B.3,vd=unlist(flw.no.b3),k=15, basistype = "s", transform='standardized')
-           ,family='nb')
+           ,family='ziP')
 
 fit2<- pfr(seed.b3 ~ lf.vd(B.3, vd=unlist(flw.no.b3),k=4, basistype = "t2", transform='standardized')
-           ,family='nb')
+           ,family='ziP')
 
 AIC(fit, fit1, fit2)# te basistype 
 
@@ -2894,34 +2955,34 @@ dat$Pos<- as.factor(dat$Pos)
 
 
 b1<- subset(dat, Branch ==1)
-flw1.b1<- subset(b1, Pos == 2)
+flw1.b1<- subset(b1, Pos == 4)
 
 b2<- subset(dat, Branch == 2)
-  flw1.b2<- subset(b2, Pos==2)
+  flw1.b2<- subset(b2, Pos==4)
 
 b3<- subset(dat, Branch == 3)
-  flw1.b3<- subset(b3, Pos==2)  
+  flw1.b3<- subset(b3, Pos==4)  
   
 b4<- subset(dat, Branch == 4)
-  flw1.b4<- subset(b4, Pos==2) 
+  flw1.b4<- subset(b4, Pos==4) 
 
 b5<- subset(dat, Branch == 5)
-  flw1.b5<- subset(b5, Pos==2) 
+  flw1.b5<- subset(b5, Pos==4) 
   
 b6<- subset(dat, Branch == 6)
-  flw1.b6<- subset(b6, Pos==2) 
+  flw1.b6<- subset(b6, Pos==4) 
   
 b7<- subset(dat, Branch == 7)
-  flw1.b7<- subset(b7, Pos==2)
+  flw1.b7<- subset(b7, Pos==4)
   
 b8<- subset(dat, Branch == 8)
-  flw1.b8<- subset(b8, Pos==2) 
+  flw1.b8<- subset(b8, Pos==4) 
   
 b9<- subset(dat, Branch == 9)
-  flw1.b9<- subset(b9, Pos==2)
+  flw1.b9<- subset(b9, Pos==4)
   
 b10<- subset(dat, Branch == 10)
-  flw1.b10<- subset(b10, Pos==2) 
+  flw1.b10<- subset(b10, Pos==4) 
     
 # Prepare functional predictors
 FL1B1<- flw1.b1[c("PlantID","Branch", "FD")]
@@ -2937,6 +2998,8 @@ FL1B10<- flw1.b10[c("PlantID","Branch","FD")]
 
 
 fred<- rbind(FL1B1, FL1B2, FL1B3, FL1B4, FL1B5, FL1B6, FL1B7, FL1B8, FL1B9, FL1B10)
+
+#fred2<- subset(fred, as.numeric(Branch) < 6)
 
 # Reshape into long-format matrix
 long<- reshape(fred, timevar="Branch", idvar=c("PlantID"), direction = "wide")
@@ -2971,18 +3034,11 @@ library(refund)
 
 
 # Banner Branch 1
-fit<- pfr(seed ~ lf.vd(B.1, vd=B.1,basistype = "te", transform='standardized')
-          ,family='nb')
+fit<- pfr(seed ~ lf.vd(B.1, vd=unlist(b.vd),basistype = "te", transform='standardized') + unlist(flw.no)
+          ,family='ziP')
 
-fit1<- pfr(seed ~ lf.vd(B.1,vd=unlist(b.vd), basistype = "te", transform='standardized')
-           ,family='nb')
 
-fit2<- pfr(seed ~ lf.vd(B.1,vd=unlist(b.vd), basistype = "te", transform='standardized'), offset=unlist(flw.no)
-           ,family='nb')
-
-AIC(fit, fit1, fit2)# te basistype 
-
-summary(fit1) # te
+summary(fit) # te
 
 fit<- coef(fit)   #Note: are these transformed?
 
@@ -2991,7 +3047,7 @@ fit$x<- fit$B.1.arg * fit$B.1.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$B.1.arg, fit$value, type="l", main="relative")
 
-write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/among_branch_FD_POS2.csv",
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/among_branch_FD_POS4.csv",
             sep=",", quote = F)
 
 
