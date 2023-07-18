@@ -1,11 +1,229 @@
 
+# functional regression begins line 420
+
+
 #home computer
 setwd("C:/Users/mason/Dropbox/git/Vicia/")
 
-#work laptop
-setwd("C:/Users/mkulbaba/Dropbox/git/Vicia")
-
 dat<- read.csv("vicia_final_data.csv")
+
+
+
+library(glmmTMB)
+library(DHARMa)
+library(car)
+library(ggplot2)
+library(tidyverse)
+library(caret)
+library(emmeans)
+
+# mean number of new flowers per day
+
+mflw.1<- aggregate(dat$flw_date, by)
+
+
+
+#summary of new flowers per day
+
+new.flw<- as.data.frame(table(dat$flw_date))
+
+new.flw
+
+write.table(new.flw, file="./final_results/flws_by_day.csv", sep=",", row.names = F)
+
+b.one<- subset(dat, flw_date ==1)
+b.two<- subset(dat, flw_date ==2)
+b.three<- subset(dat, flw_date ==3)
+b.four<- subset(dat, flw_date ==4)
+b.five<- subset(dat, flw_date ==5)
+b.six<- subset(dat, flw_date ==6)
+b.seven<- subset(dat, flw_date ==7)
+b.eight<- subset(dat, flw_date ==8)
+b.nine<- subset(dat, flw_date ==9)
+b.ten<- subset(dat, flw_date ==10)
+
+b1.flw<- as.data.frame(table(b.one$Branch))
+b2.flw<- as.data.frame(table(b.two$Branch))
+b3.flw<- as.data.frame(table(b.three$Branch))
+b4.flw<- as.data.frame(table(b.four$Branch))
+b5.flw<- as.data.frame(table(b.five$Branch))
+b6.flw<- as.data.frame(table(b.six$Branch))
+b7.flw<- as.data.frame(table(b.seven$Branch))
+b8.flw<- as.data.frame(table(b.eight$Branch))
+b9.flw<- as.data.frame(table(b.nine$Branch))
+b10.flw<- as.data.frame(table(b.ten$Branch))
+
+# mean number of new flowers per day
+
+mean.count<- function(x) {mean((length(x)))}
+
+f.se<- function(x) { sd(x)/sqrt(length(x)) }
+
+dat2<- dat[!is.na(dat$flw_date), ]
+
+# among branch corr
+
+library(Hmisc)
+rcorr(xmat)
+
+b1<- subset(dat2, Branch ==1)
+b2<- subset(dat2, Branch ==2)
+b3<- subset(dat2, Branch ==3)
+b4<- subset(dat2, Branch ==4)
+b5<- subset(dat2, Branch ==5)
+
+b1c<-as.matrix(cbind(b1$FD, b1$FL, b1$B))
+colnames(b1c)<- c("FD", "FL", "B")
+
+b2c<-as.matrix(cbind(b2$FD, b2$FL, b2$B))
+colnames(b2c)<- c("FD", "FL", "B")
+
+b3c<-as.matrix(cbind(b3$FD, b3$FL, b3$B))
+colnames(b3c)<- c("FD", "FL", "B")
+
+b4c<-as.matrix(cbind(b4$FD, b4$FL, b4$B))
+colnames(b4c)<- c("FD", "FL", "B")
+
+b5c<-as.matrix(cbind(b5$FD, b5$FL, b5$B))
+colnames(b5c)<- c("FD", "FL", "B")
+
+rcorr(b1c)
+rcorr(b2c)
+rcorr(b3c)
+rcorr(b4c)
+rcorr(b5c)
+
+#mean & se of total new flowers across indiv.
+mflw.t<- aggregate(dat$Branch, by=list(dat$PlantID, dat$flw_date), length)
+mflw.t.mean<- aggregate(mflw.t$x, by=list(mflw.t$Group.2), mean)
+mflw.t.se<- aggregate(mflw.t$x, by=list(mflw.t$Group.2), f.se)
+flw1_t<- cbind(mflw.t.mean, mflw.t.se)
+
+
+write.table(flw1_t, file="final_results/all_flw_date_new_flowers.csv", sep=",", row.names = F)
+
+
+
+#Day 1
+mflw.1<- aggregate(b.one$Branch, by=list(b.one$PlantID, b.one$Branch), length)
+mflw.1.1<- aggregate(mflw.1$x, by=list(mflw.1$Group.2), mean)
+mflw.1.1b<- aggregate(mflw.1$x, by=list(mflw.1$Group.2), f.se)
+flw1_bch<- cbind(mflw.1.1, mflw.1.1b)
+write.table(flw1_bch, file="final_results/flw1_branches.csv", sep=",", row.names = F)
+
+
+#Day 2
+mflw.2<- aggregate(b.two$Branch, by=list(b.two$PlantID, b.two$Branch), length)
+mflw.2.2<- aggregate(mflw.2$x, by=list(mflw.2$Group.2), mean)
+mflw.2.2b<- aggregate(mflw.2$x, by=list(mflw.2$Group.2), f.se)
+flw2_bch<- cbind(mflw.2.2, mflw.2.2b)
+write.table(flw2_bch, file="final_results/flw2_branches.csv", sep=",", row.names = F)
+
+
+#Day 3
+mflw.3<- aggregate(b.three$Branch, by=list(b.three$PlantID, b.three$Branch), length)
+mflw.3.3<- aggregate(mflw.3$x, by=list(mflw.3$Group.2), mean)
+mflw.3.3b<- aggregate(mflw.3$x, by=list(mflw.3$Group.2), f.se)
+flw3_bch<- cbind(mflw.3.3, mflw.3.3b)
+write.table(flw3_bch, file="final_results/flw3_branches.csv", sep=",", row.names = F)
+
+#Day 4
+mflw.4<- aggregate(b.four$Branch, by=list(b.four$PlantID, b.four$Branch), length)
+mflw.4.4<- aggregate(mflw.4$x, by=list(mflw.4$Group.2), mean)
+mflw.4.4b<- aggregate(mflw.4$x, by=list(mflw.4$Group.2), f.se)
+flw4_bch<- cbind(mflw.4.4, mflw.4.4b)
+write.table(flw4_bch, file="final_results/flw4_branches.csv", sep=",", row.names = F)
+
+#Day 5
+mflw.5<- aggregate(b.five$Branch, by=list(b.five$PlantID, b.five$Branch), length)
+mflw.5.5<- aggregate(mflw.5$x, by=list(mflw.5$Group.2), mean)
+mflw.5.5b<- aggregate(mflw.5$x, by=list(mflw.5$Group.2), f.se)
+flw5_bch<- cbind(mflw.5.5, mflw.5.5b)
+write.table(flw5_bch, file="final_results/flw5_branches.csv", sep=",", row.names = F)
+
+#Day 6
+mflw.6<- aggregate(b.six$Branch, by=list(b.six$PlantID, b.six$Branch), length)
+mflw.6.6<- aggregate(mflw.6$x, by=list(mflw.6$Group.2), mean)
+mflw.6.6b<- aggregate(mflw.6$x, by=list(mflw.6$Group.2), f.se)
+flw6_bch<- cbind(mflw.6.6, mflw.6.6b)
+write.table(flw6_bch, file="final_results/flw6_branches.csv", sep=",", row.names = F)
+
+#Day 7
+mflw.7<- aggregate(b.seven$Branch, by=list(b.seven$PlantID, b.seven$Branch), length)
+mflw.7.7<- aggregate(mflw.7$x, by=list(mflw.7$Group.2), mean)
+mflw.7.7b<- aggregate(mflw.7$x, by=list(mflw.7$Group.2), f.se)
+flw7_bch<- cbind(mflw.7.7, mflw.7.7b)
+write.table(flw7_bch, file="final_results/flw7_branches.csv", sep=",", row.names = F)
+
+#Day 8
+mflw.8<- aggregate(b.eight$Branch, by=list(b.eight$PlantID, b.eight$Branch), length)
+mflw.8.8<- aggregate(mflw.8$x, by=list(mflw.8$Group.2), mean)
+mflw.8.8b<- aggregate(mflw.8$x, by=list(mflw.8$Group.2), f.se)
+flw8_bch<- cbind(mflw.8.8, mflw.8.8b)
+write.table(flw8_bch, file="final_results/flw8_branches.csv", sep=",", row.names = F)
+
+
+#Day 9
+mflw.9<- aggregate(b.nine$Branch, by=list(b.nine$PlantID, b.nine$Branch), length)
+mflw.9.9<- aggregate(mflw.9$x, by=list(mflw.9$Group.2), mean)
+mflw.9.9b<- aggregate(mflw.9$x, by=list(mflw.9$Group.2), f.se)
+flw9_bch<- cbind(mflw.9.9, mflw.9.9b)
+write.table(flw9_bch, file="final_results/flw9_branches.csv", sep=",", row.names = F)
+
+
+#Day 10
+mflw.10<- aggregate(b.ten$Branch, by=list(b.ten$PlantID, b.ten$Branch), length)
+mflw.10.10<- aggregate(mflw.10$x, by=list(mflw.10$Group.2), mean)
+mflw.10.10b<- aggregate(mflw.10$x, by=list(mflw.10$Group.2), f.se)
+flw10_bch<- cbind(mflw.10.10, mflw.10.10b)
+write.table(flw10_bch, file="final_results/flw10_branches.csv", sep=",", row.names = F)
+
+
+
+# daily mean banner height
+
+dat$Branch<- as.factor(dat$Branch)
+dat$flw_date<- as.factor(dat$flw_date)
+
+one<- glmmTMB(B ~  Branch, family="gaussian", data=b.one)
+two<- glmmTMB(B ~  Branch, family="gaussian", data=b.two)
+three<- glmmTMB(B ~  Branch, family="gaussian", data=b.three)
+four<- glmmTMB(B ~  Branch, family="gaussian", data=b.four)
+five<- glmmTMB(B ~  Branch, family="gaussian", data=b.five)
+six<- glmmTMB(B ~  Branch, family="gaussian", data=b.six)
+seven<- glmmTMB(B ~  Branch, family="gaussian", data=b.seven)
+
+m.1<- emmeans(one,"Branch",  type='response')
+m.2<- emmeans(two,"Branch",  type='response')
+m.3<- emmeans(three,"Branch",  type='response')
+m.4<- emmeans(four,"Branch",  type='response')
+m.5<- emmeans(five,"Branch",  type='response')
+m.6<- emmeans(six,"Branch",  type='response')
+m.7<- emmeans(seven,"Branch",  type='response')
+
+branch.dat<- cbind(m.1, m.2, m.3, m.4, m.5, m.6, m.7)
+
+plot(m.6)
+
+write.table(m.1, file="final_results/flw1_branches.csv", sep=",", row.names = F)
+write.table(m.2, file="final_results/flw2_branches.csv", sep=",", row.names = F)
+write.table(m.3, file="final_results/flw3_branches.csv", sep=",", row.names = F)
+write.table(m.4, file="final_results/flw4_branches.csv", sep=",", row.names = F)
+write.table(m.5, file="final_results/flw5_branches.csv", sep=",", row.names = F)
+write.table(m.6, file="final_results/flw6_branches.csv", sep=",", row.names = F)
+
+
+#write.table(b1.flw, file="./final_results/b1.flw.csv", sep=",", row.names = F)
+#write.table(b2.flw, file="./final_results/b2.flw.csv", sep=",", row.names = F)
+#write.table(b3.flw, file="./final_results/b3.flw.csv", sep=",", row.names = F)
+#write.table(b4.flw, file="./final_results/b4.flw.csv", sep=",", row.names = F)
+#write.table(b5.flw, file="./final_results/b5.flw.csv", sep=",", row.names = F)
+#write.table(b6.flw, file="./final_results/b6.flw.csv", sep=",", row.names = F)
+#write.table(b7.flw, file="./final_results/b7.flw.csv", sep=",", row.names = F)
+#write.table(b8.flw, file="./final_results/b8.flw.csv", sep=",", row.names = F)
+#write.table(b9.flw, file="./final_results/b9.flw.csv", sep=",", row.names = F)
+#write.table(b10.flw, file="./final_results/b10.flw.csv", sep=",", row.names = F)
+
 
 # mean and variance calcls
 
@@ -40,8 +258,8 @@ var.mean
 
 colnames(var.mean)<- c("fl.mean", "fl.var", "fd.mean", "fd.var", "b.mean", "b.var")
 
-write.table(var.mean, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/var_mean.csv",
-            sep=",", quote = F)
+#write.table(var.mean, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/var_mean.csv",
+ #           sep=",", quote = F)
 
 #################
 #
@@ -102,7 +320,13 @@ seed.plant<- aggregate(dat2$seeds, by=list(dat2$PlantID), sum)
 #flowers per plants
 flws<- aggregate(as.numeric(dat2$PosSeq), by=list(dat2$PlantID), max)
 
-
+library(glmmTMB)
+library(DHARMa)
+library(car)
+library(ggplot2)
+library(tidyverse)
+library(caret)
+library(emmeans)
 # calculate total number of ovules
 
 dat2$ovules<- dat2$seeds + dat2$aborted + dat2$unfert
@@ -111,11 +335,11 @@ a<- glmmTMB(ovules ~  Branch, family="nbinom1", data=dat2)
 
 b<- glmmTMB(ovules ~  Branch + Pos, family="nbinom1", data=dat2)
 
-c<- glmmTMB(ovules ~  Branch + Pos + B, family="nbinom1", data=dat2)
+c<- glmmTMB(ovules ~  Branch + Pos + PosSeq, family="nbinom1", data=dat2)
 
-testDispersion(c)
-simulateResiduals(fittedModel = c, plot = T)
-Anova(c, type=3)
+testDispersion(b)
+simulateResiduals(fittedModel = b, plot = T)
+Anova(b, type=3)
 
 summary(c)
 
@@ -141,20 +365,6 @@ abline(glm(ovules ~ PosSeq + Branch, data=dat2))
 #website link:
 # http://www.sthda.com/english/articles/40-regression-analysis/162-nonlinear-regression-essentials-in-r-polynomial-and-spline-regression-models/
 
-library(ggplot2)
-library(tidyverse)
-library(caret)
-library(emmeans)
-
-# Generate LS means for banner height across branches
-
-dat$PlantID<- as.factor(dat$PlantID)
-dat$Branch<- as.factor(dat$Branch)
-dat$Pos<- as.factor(dat$Pos)
-
-fit<- glm.nb(B ~ Pos + Branch, data = dat)
-
-summary(fit)
 
 
 
@@ -201,7 +411,7 @@ ggplot(dat2, aes(PosSeq, seeds) ) +
 
 
 # Try polynomial term
-lm(seeds ~ PosSeq + I(PosSeq^2), data = dat2)
+lm(seeds ~ PosSeq + I(as.numeric(PosSeq)^2), data = dat2)
 
 # alternative code to make changing order of polynomial faster
   lm(seeds ~ poly(PosSeq, 2, raw = TRUE), data = dat2)
@@ -283,8 +493,7 @@ lm(seeds ~ PosSeq + I(PosSeq^2), data = dat2)
   # Build the model
   knots <- quantile(dat2$B, p = c(0.25, 0.5, 0.75))
   
-  model.spline <- lm (seeds ~ bs(PosSeq, knots = knots) + Branch + PlantID, 
-                      outer.ok=TRUE, data = dat2)
+  model.spline <- lm (seeds ~ bs(PosSeq, knots = knots) + Branch + PlantID, outer.ok=TRUE, data = dat2)
   summary(model.spline)
   
   
@@ -509,20 +718,412 @@ seqpos<- as.vector(seqpos)
 
 
 
-#load Refund
+#load Refund - June 4: after chat with Lawrence: check Fig. 4 vd. 
 library(refund)
 
 
-fit.1<- pfr(seed ~ lf.vd(banner, vd=seqpos, transform='standardized')
+fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
            + unlist(flw.no),family='ziP')
 
-fit.1.1<- pfr(seed ~ lf.vd(banner, vd=unlist(branch.no), transform='standardized')
-            + unlist(flw.no),family='ziP')
+fit.1.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+            + unlist(branch.no),family='ziP')
 
-AIC(fit.1, fit.1.1)
+fit.1.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+             + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.1.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
 
 summary(fit.1)
 summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
+
+#output of results
+fit<- coef(fit.1.2)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$FL.arg * fit$FL.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$banner.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+#plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/banner_final.csv",
+            sep=",")
+
+
+  
+####################################################################3
+  #
+  # Flower Length (FL)
+fit.2.2<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.2.3<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+
+AIC(fit.2.2, fit.2.3)
+
+summary(fit.2.2)
+summary(fit.2.3)
+
+#make absolute frstart date
+fit<- coef(fit.2.3)
+
+fit$x<- fit$FL.arg * fit$FL.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FL.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$FL.arg, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/FL_final.csv",
+            sep=",")
+
+################################################################3
+
+
+  ###########################################################################3
+  #
+  # Flower Diameter: FD
+
+fit.2.2<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.2.3<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+
+AIC(fit.2.2, fit.2.3)
+
+summary(fit.2.2)
+summary(fit.2.3)
+
+#make absolute frstart date
+fit<- coef(fit.2.2)
+
+fit$x<- fit$FD.arg * fit$FD.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FD.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$FD.arg, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/FD_final.csv",
+            sep=",")
+
+
+##############################################################################
+#
+# Isoalate first five flowers on first  raceme
+#
+
+five.branch<- subset(dat, as.numeric(Branch) == 1)
+
+five.branch<- droplevels(five.branch)
+
+five.five<- subset(five.branch, as.numeric(five.branch$PosSeq) < 6)
+five.five<- droplevels(five.five)
+
+######
+# Prepare functional predictors
+B<- five.five[c("PlantID","Pos", "B")]
+
+FL<- five.five[c("PlantID","PosSeq", "FL")]
+
+FD<- five.five[c("PlantID","PosSeq", "FD")]
+# Reshape into long-format matrix
+long<- reshape(B, timevar="Pos", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+banner<-long
+
+# Reshape into long-format matrix
+long<- reshape(FL, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+FL<-long
+
+# Reshape into long-format matrix
+long<- reshape(FD, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+FD<-long
+
+
+# functional regression for 5x5 data
+
+fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+fit.1.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+              + unlist(branch.no),family='ziP')
+
+fit.1.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.1.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
+
+summary(fit.1)
+summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
+
+#output of results
+fit<- coef(fit.1.3)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$banner.arg * fit$banner.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$banner.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/banner_final_5x5_int_B1_PART2.csv",
+            sep=",")
+
+# FL 5 x 5
+
+fit.1<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+fit.1.1<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
+              + unlist(branch.no),family='ziP')
+
+fit.1.2<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.1.3<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
+
+summary(fit.1)
+summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
+
+#output of results
+fit<- coef(fit.1.3)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$FL.arg * fit$FL.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FL.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$FL.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/FL_final_5x5_int_B1.csv",
+            sep=",")
+
+# FD 5 x 5
+fit.1<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+fit.1.1<- pfr(seed ~ lf.vd(FD)
+              + unlist(branch.no),family='ziP')
+
+fit.1.2<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.1.3<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
+
+summary(fit.1)
+summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
+
+#output of results
+fit<- coef(fit.1.3)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$FD.arg * fit$FD.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$FD.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$FD.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/FD_final_5x5_int_B1.csv",
+            sep=",")
+
+
+# Isolate first five flowers on first fifth raceme
+#
+dat2<- dat[!is.na(dat$B), ]
+
+five.branch<- subset(dat2, as.numeric(Branch) == 3)
+
+five.branch<- droplevels(five.branch)
+
+#five.five<- subset(five.branch, as.numeric(five.branch$Pos) < 10)
+#five.five<- droplevels(five.five)
+
+# make covariates for branch fives
+
+
+
+flw.no5<- aggregate(as.numeric(five.branch$Pos), by=list(five.branch$PlantID), max)
+flw.no5$Group.1<-NULL
+
+seed5<- aggregate(five.branch$seeds, by=list(five.branch$PlantID), sum)
+seed5$Group.1<-NULL
+
+branch.no5<- aggregate(as.numeric(five.branch$Branch), by=list(five.branch$PlantID), max)
+branch.no5$Group.1<-NULL
+
+######
+# Prepare functional predictors
+B<- five.branch[c("PlantID","Pos", "B")]
+
+FL<- five.branch[c("PlantID","Pos", "FL")]
+
+FD<- five.branch[c("PlantID","PosSeq", "FD")]
+# Reshape into long-format matrix
+long<- reshape(B, timevar="Pos", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+banner<-long
+
+# Reshape into long-format matrix
+long<- reshape(FL, timevar="Pos", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+FL<-long
+
+# Reshape into long-format matrix
+long<- reshape(FD, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+FD<-long
+
+
+
+
+# functional regression for 5x5 data
+
+fit.1<- pfr(seed5 ~ lf.vd(banner, vd=unlist(flw.no5),k=20, transform='standardized')
+            + unlist(flw.no5),family='ziP')
+
+fit.1.1<- pfr(seed5 ~ lf.vd(banner, vd=unlist(flw.no5),k=20, transform='standardized')
+              + unlist(branch.no5),family='ziP')
+
+fit.1.2<- pfr(seed5 ~ lf.vd(banner, vd=unlist(flw.no5),k=19, transform='standardized')
+              + unlist(flw.no5) + unlist(branch.no5),family='ziP')
+
+fit.1.3<- pfr(seed5 ~ lf.vd(banner, vd=unlist(flw.no5),k=18, transform='standardized')
+              + unlist(flw.no5) + unlist(branch.no5) + unlist(flw.no5)*unlist(branch.no5),family='ziP')
+
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
+
+summary(fit.1)
+summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
+
+#output of results
+fit<- coef(fit.1.3)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$banner.arg * fit$banner.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$banner.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/banner_final_5x5_int_B5.csv",
+            sep=",")
+
+# FL 5 x 5
+
+fit.1<- pfr(seed5 ~ lf.vd(FL, vd=unlist(flw.no5),k=20, transform='standardized')
+            + unlist(flw.no5),family='ziP')
+
+fit.1.1<- pfr(seed5 ~ lf.vd(FL, vd=unlist(flw.no5),k=20, transform='standardized')
+              + unlist(branch.no5),family='ziP')
+
+fit.1.2<- pfr(seed5 ~ lf.vd(FL, vd=unlist(flw.no5),k=19, transform='standardized')
+              + unlist(flw.no5) + unlist(branch.no5),family='ziP')
+
+fit.1.3<- pfr(seed5 ~ lf.vd(FL, vd=unlist(flw.no5),k=18, transform='standardized')
+              + unlist(flw.no5) + unlist(branch.no5) + unlist(flw.no5)*unlist(branch.no5),family='ziP')
+
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
+
+summary(fit.1)
+summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
 
 #output of results
 fit<- coef(fit.1.1)   #Note: are these transformed?
@@ -534,194 +1135,93 @@ plot(fit$x, fit$value, type="l", main="absolute")
 
 plot(fit$FL.arg, fit$value, type="l", main="relative")
 
-write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/Results and Figures/final_full/fl_final_TE.csv",
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$FL.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
+
+
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/FL_final_5x5_int_B5.csv",
             sep=",")
 
+#among branch (flw pos 1-5) for FD
 
-fit.2<- pfr(seed ~ lf.vd(banner, vd=seqpos, basistype = "t2", transform='standardized')
-            , family='poisson')
+b1<- subset(dat2, Branch ==1)
+b2<- subset(dat2, Branch ==2)
+b3<- subset(dat2, Branch ==3)
+b4<- subset(dat2, Branch ==4)
+b5<- subset(dat2, Branch ==5)
 
+flw.no5<- aggregate(as.numeric(b3$Pos), by=list(b3$PlantID), max)
+flw.no5$Group.1<-NULL
 
-summary(fit.2)
+seed5<- aggregate(b3$seeds, by=list(b3$PlantID), sum)
+seed5$Group.1<-NULL
 
+branch.no5<- aggregate(as.numeric(b3$Branch), by=list(b3$PlantID), max)
+branch.no5$Group.1<-NULL
 
-fit.3<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype="s",transform='standardized')
-            , family='poisson')
+FD<- b3[c("PlantID","PosSeq", "FD")]
 
-summary(fit.3)
+# Reshape into long-format matrix
+long<- reshape(FD, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
 
-AIC(fit.1, fit.2, fit.3) # use basistype "s"
+#rename
+FD<-long
 
-# Add additional independent variables
-fit.1<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-            ,family='poisson')
+# FD 5 x 5
+fit.1<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), k=15, transform='standardized')
+            + unlist(flw.no5),family='ziP')
 
-fit.1a<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-             , offset= unlist(flw.no)  ,family='poisson')
+fit.1.1<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), k=15, transform='standardized')
+              + unlist(branch.no5),family='ziP')
 
-fit.1b<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-             + unlist(flw.no)  ,family='poisson')
+fit.1.2<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), k=15,transform='standardized')
+              + unlist(flw.no5) + unlist(branch.no5),family='ziP')
 
-fit.1c<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-             + unlist(branch.no)
-             ,family='poisson')
+fit.1.3<- pfr(seed5 ~ lf.vd(FD, vd= unlist(branch.no5),k=15, transform='standardized')
+              + unlist(flw.no5) + unlist(branch.no5) + unlist(flw.no5)*unlist(branch.no5),family='ziP')
 
-fit.1d<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized')
-             +unlist(branch.no) + unlist(flw.no),
-             family='poisson')
+AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
 
-fit.1e<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized') # interaction term
-             +unlist(branch.no)*unlist(flw.no),
-             family='poisson')
-
-fit.1f<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized') +unlist(branch.no)
-             , offset= unlist(flw.no)  ,family='poisson')
-
-
-fit.1g<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized') # ":" interaction term (just interaction)
-             +unlist(branch.no):unlist(flw.no), family='poisson')
-
-fit.1h<- pfr(seed ~ lf.vd(banner, vd=seqpos,basistype = "s", transform='standardized') +unlist(log(branch.no))
-             , offset= unlist(flw.no)  ,family='nb')
-
-AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d, fit.1e, fit.1f, fit.1g, fit.1h) # fit.1g smallest AIC
-
-
-
-summary(fit.1a)
-summary(fit.1b) # flw no significant, but no convergence
-summary(fit.1c) # branch no, sig on it's own
-summary(fit.1d) #  branch sig, flw.no not sig
-summary(fit.1e) # interaction and flw.no sig., branch not significant
-summary(fit.1f) # no convergence, branch significant
-summary(fit.1g)
-summary(fit.1h)
-
-
+summary(fit.1)
+summary(fit.1.1)
+summary(fit.1.2)
+summary(fit.1.3)
 
 #output of results
-fit<- coef(fit.1f)   #Note: are these transformed?
+fit<- coef(fit.1.3)   #Note: are these transformed?
 
 #make absolute frstart date
-fit$x<- fit$banner.arg * fit$banner.vd
+fit$x<- fit$FD.arg * fit$FD.vd
 
 plot(fit$x, fit$value, type="l", main="absolute")
 
-plot(fit$banner.arg, fit$value, type="l", main="relative")
+plot(fit$FD.arg, fit$value, type="l", main="relative")
+
+fit$z1<- scale(fit$value)
+fit$z2 <- ave(fit$value, fit$FD.vd, FUN=scale)
+fit$z_LDH<- fit$value/fit$se
+
+plot(fit$x, fit$z_LDH, type="l", main="absolute, Z-score")
 
 
-#write.table(fit, "C:/Users/mason/Dropbox/git/students/Getsemani Arteaga/Results and Figures/banner_seeds_best_fit.csv", sep="," , row.names=F, quote=F)
+
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/final_results/within_FD_final_5x5_int_B1.csv",
+            sep=",")
 
 
-#fit2<- read.csv("C:/Users/mason/Dropbox/git/Vicia/fit_reduced.csv")
 
-fit2$banner.vd<- as.factor(fit2$banner.vd)
 
-fit2$Flower_Number <- fit2$banner.vd
 
-p<- ggplot(fit2, aes(x= banner.arg, y= value, color=Flower_Number)) +
-  geom_line(aes(colour = Flower_Number)) 
-  
-  #geom_smooth(method =gam, formula = y ~ s(x) )
 
-  p
-  
-  p + ggtitle("Selection on Banner Length") +
-    xlab("Relative flower position") + ylab("Partial regression coefficient")
-  
-  
-####################################################################3
-  #
-  # Flower Length (FL)
-  
-  fit.1<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "te", transform='standardized')
-              ,family='poisson')
-  
-  summary(fit.1)
-  
-  fit.2<- pfr(seed ~ lf.vd(FL, vd=seqpos, basistype = "t2", transform='standardized')
-              , family='poisson')
-  
-  
-  summary(fit.2)
-  
-  
-  fit.3<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype="s",transform='standardized')
-              , family='poisson')
-  
-  summary(fit.3)
-  
-  AIC(fit.1, fit.2, fit.3)
 
-  # Covariates
-  fit.1<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
-              ,family='poisson')
-  
-  fit.1a<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
-               + unlist(flw.no)
-               ,family='poisson')
-  
-  fit.1b<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
-               + unlist(branch.no)
-               ,family='poisson')
-  
-  
-  
-  
-  fit.1c<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
-               + unlist(branch.no) + unlist(flw.no)
-               ,family='poisson')
-  
-  fit.1d<- pfr(seed ~ lf.vd(FL, vd=seqpos,basistype = "s", transform='standardized')
-               + unlist(branch.no)*unlist(flw.no)
-               ,family='poisson')
-  
-  
-  summary(fit.1a)
-  summary(fit.1b)
-  summary(fit.1c)
-  summary(fit.1d)
-  
-  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
-  
-  
-  #######################################################
-  #
-  # Plotting
-  
-  #output of results
-  fit<- coef(fit.1d)   #Note: are these transformed?
-  
-  #make absolute frstart date
-  fit$x<- fit$FL.arg * fit$FL.vd
-  
-  plot(fit$x, fit$value, type="l", main="absolute")
-  
-  plot(fit$FL.arg, fit$value, type="l", main="relative")
-  
-  
-  #write.table(fit, "C:/Users/mkulbaba/Dropbox/git/students/Getsemani Arteaga/FL_seeds_flwNo_branch.csv", sep="," , row.names=F, quote=F)
-  
-  
-  #fit2<- read.csv("C:/Users/mkulbaba/Dropbox/git/Vicia/fit_FL_reduced.csv")
-  
-  fit$FL.vd<- as.factor(fit$FL.vd)
-  
-  fit$Flower_Number <- fit$FL.vd
-  
-  p<- ggplot(fit, aes(x= x, y= value, color=Flower_Number)) +
-    geom_line(aes(colour = Flower_Number)) 
-  
-  #geom_smooth(method =gam, formula = y ~ s(x) )
-  
-  p
-  
-  p + ggtitle("Selection on Flower Length") +
-    xlab("Continuous flower position") + ylab("Partial regression coefficient")
 
-  ###########################################################################3
-  #
-  # Flower Diameter: FD
+######################################################################
   
   fit.1<- pfr(seed ~ lf.vd(FD, vd=seqpos,basistype = "te", transform='standardized')
               ,family='poisson')
@@ -767,6 +1267,361 @@ p<- ggplot(fit2, aes(x= banner.arg, y= value, color=Flower_Number)) +
   summary(fit.1c)
   summary(fit.1d)
   
+  #############################################################################
+  #
+  # Among raceme (branch variation)
+  #
+  
+  f1<- subset(dat2, Pos ==1)
+
+  
+  flw.no5<- aggregate(as.numeric(f1$Pos), by=list(f1$PlantID), max)
+  flw.no5$Group.1<-NULL
+  
+  seed5<- aggregate(f1$seeds, by=list(f1$PlantID), sum)
+  seed5$Group.1<-NULL
+  
+  branch.no5<- aggregate(as.numeric(f1$Branch), by=list(f1$PlantID), max)
+  branch.no5$Group.1<-NULL
+  
+  B<- f1[c("PlantID","Bpos", "B")]
+  FL<- f1[c("PlantID","Bpos", "FL")]
+  FD<- f1[c("PlantID","Bpos", "FD")]
+  
+  # Reshape into long-format matrix
+  long<- reshape(B, timevar="Bpos", idvar=c("PlantID"), direction = "wide")
+  long$PlantID<- NULL
+  long<- as.matrix(long)
+  
+  banner<- as.matrix(long)
+  
+  long<- reshape(FL, timevar="Bpos", idvar=c("PlantID"), direction = "wide")
+  long$PlantID<- NULL
+  FL<- as.matrix(long)
+  
+  long<- reshape(FD, timevar="Bpos", idvar=c("PlantID"), direction = "wide")
+  long$PlantID<- NULL
+  FD<- as.matrix(long)
+  
+  #########
+  #
+  # functional regression
+  library(refund)
+  
+  # Banner flw1
+  fit.1<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5) ,transform='standardized')
+              ,family='ziP')
+  
+  fit.1a<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)
+               ,family='ziP')
+  
+  fit.1b<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               +  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1c<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)+  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1d<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)*unlist(branch.no5)
+               ,family='ziP')
+  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
+  
+  summary(fit.1)
+  summary(fit.1a)
+  summary(fit.1b)
+  summary(fit.1c)
+  summary(fit.1d)
+  
+  
+  #######################################################
+  #
+  # Plotting
+  
+  #output of results
+  fit<- coef(fit.1d)   #Note: are these transformed?
+  
+  #make absolute frstart date
+  fit$x<- fit$banner.arg * fit$banner.vd
+  
+  plot(fit$x, fit$value, type="l", main="absolute")
+  
+  plot(fit$banner.arg, fit$value, type="l", main="relative")
+  
+  fit$z_LDH<- fit$value/fit$se
+  
+  plot(fit$x, fit$z_LDH, type="l", main="absolut & LDH Z-Score")
+  
+  write.table(fit, "C:/Users/mason/Dropbox/git/Vicia/final_results/Among_branch/banner_flw1_int.csv", sep="," , row.names=F, quote=F)
+  
+  
+  # FL flw1
+  fit.1<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5) ,transform='standardized')
+              ,family='ziP')
+  
+  fit.1a<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)
+               ,family='ziP')
+  
+  fit.1b<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               +  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1c<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)+  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1d<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)*unlist(branch.no5)
+               ,family='ziP')
+  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
+  
+  summary(fit.1)
+  summary(fit.1a)
+  summary(fit.1b)
+  summary(fit.1c)
+  summary(fit.1d)
+  
+  
+  #######################################################
+  #
+  # Plotting
+  
+  #output of results
+  fit<- coef(fit.1c)   #Note: are these transformed?
+  
+  #make absolute frstart date
+  fit$x<- fit$FL.arg * fit$FL.vd
+  
+  plot(fit$x, fit$value, type="l", main="absolute")
+  
+  plot(fit$FL.arg, fit$value, type="l", main="relative")
+  
+  fit$z_LDH<- fit$value/fit$se
+  
+  plot(fit$x, fit$z_LDH, type="l", main="absolut & LDH Z-Score")
+  
+  write.table(fit, "C:/Users/mason/Dropbox/git/Vicia/final_results/Among_branch/FL_flw1_int.csv", sep="," , row.names=F, quote=F)
+  
+  
+  
+  # FD flw1
+  fit.1<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5) ,transform='standardized')
+              ,family='ziP')
+  
+  fit.1a<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)
+               ,family='ziP')
+  
+  fit.1b<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), transform='standardized')
+               +  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1c<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), basistype="te",transform='standardized')
+               + unlist(flw.no5)+  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1d<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5),basistype="te", transform='standardized')
+               + unlist(flw.no5)*unlist(branch.no5)
+               ,family='ziP')
+  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
+  
+  summary(fit.1)
+  summary(fit.1a)
+  summary(fit.1b)
+  summary(fit.1c)
+  summary(fit.1d)
+  
+  
+  #######################################################
+  #
+  # Plotting
+  
+  #output of results
+  fit<- coef(fit.1c)   #Note: are these transformed?
+  
+  #make absolute frstart date
+  fit$x<- fit$FD.arg * fit$FD.vd
+  
+  plot(fit$x, fit$value, type="l", main="absolute")
+  
+  plot(fit$FD.arg, fit$value, type="l", main="relative")
+  
+  fit$z_LDH<- fit$value/fit$se
+  
+  plot(fit$x, fit$z_LDH, type="l", main="absolut & LDH Z-Score")
+  
+  write.table(fit, "C:/Users/mason/Dropbox/git/Vicia/final_results/Among_branch/FD_flw1_int.csv", sep="," , row.names=F, quote=F)
+  
+  
+  ########################################################
+  #
+  # flower 4 (5)
+  
+  f1<- subset(dat2, Pos ==3)
+  
+  
+  flw.no5<- aggregate(as.numeric(f1$Pos), by=list(f1$PlantID), max)
+  flw.no5$Group.1<-NULL
+  
+  seed5<- aggregate(f1$seeds, by=list(f1$PlantID), sum)
+  seed5$Group.1<-NULL
+  
+  branch.no5<- aggregate(as.numeric(f1$Branch), by=list(f1$PlantID), max)
+  branch.no5$Group.1<-NULL
+  
+  B<- f1[c("PlantID","Bpos", "B")]
+  FL<- f1[c("PlantID","Bpos", "FL")]
+  FD<- f1[c("PlantID","Bpos", "FD")]
+  
+  # Reshape into long-format matrix
+  long<- reshape(B, timevar="Bpos", idvar=c("PlantID"), direction = "wide")
+  long$PlantID<- NULL
+  long<- as.matrix(long)
+  
+  banner<- as.matrix(long)
+  
+  long<- reshape(FL, timevar="Bpos", idvar=c("PlantID"), direction = "wide")
+  long$PlantID<- NULL
+  FL<- as.matrix(long)
+  
+  long<- reshape(FD, timevar="Bpos", idvar=c("PlantID"), direction = "wide")
+  long$PlantID<- NULL
+  FD<- as.matrix(long)
+  
+  #########
+  #
+  # functional regression
+  library(refund)
+  
+  # Banner flw1
+  fit.1<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5) ,transform='standardized')
+              ,family='ziP')
+  
+  fit.1a<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)
+               ,family='ziP')
+  
+  fit.1b<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               +  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1c<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)+  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1d<- pfr(seed5 ~ lf.vd(banner, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)*unlist(branch.no5)
+               ,family='ziP')
+  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
+  
+  summary(fit.1)
+  summary(fit.1a)
+  summary(fit.1b)
+  summary(fit.1c)
+  summary(fit.1d) # n.s functional predictor
+  
+  
+  #######################################################
+  #
+  # Plotting
+  
+  #output of results
+  fit<- coef(fit.1a)   #Note: are these transformed?
+  
+  #make absolute frstart date
+  fit$x<- fit$banner.arg * fit$banner.vd
+  
+  plot(fit$x, fit$value, type="l", main="absolute")
+  
+  plot(fit$banner.arg, fit$value, type="l", main="relative")
+  
+  fit$z_LDH<- fit$value/fit$se
+  
+  plot(fit$x, fit$z_LDH, type="l", main="absolut & LDH Z-Score")
+  
+  #write.table(fit, "C:/Users/mason/Dropbox/git/Vicia/final_results/Among_branch/banner_flw5_int.csv", sep="," , row.names=F, quote=F)
+  
+  
+  # FL flw1
+  fit.1<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5) ,transform='standardized')
+              ,family='ziP')
+  
+  fit.1a<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)
+               ,family='ziP')
+  
+  fit.1b<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               +  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1c<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)+  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1d<- pfr(seed5 ~ lf.vd(FL, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)*unlist(branch.no5)
+               ,family='ziP')
+  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
+  
+  summary(fit.1)
+  summary(fit.1a)
+  summary(fit.1b)
+  summary(fit.1c)
+  summary(fit.1d) # functional predictor n.s.
+  
+  
+  #######################################################
+  #
+  # Plotting
+  
+  #output of results
+  fit<- coef(fit.1c)   #Note: are these transformed?
+  
+  #make absolute frstart date
+  fit$x<- fit$FL.arg * fit$FL.vd
+  
+  plot(fit$x, fit$value, type="l", main="absolute")
+  
+  plot(fit$FL.arg, fit$value, type="l", main="relative")
+  
+  fit$z_LDH<- fit$value/fit$se
+  
+  plot(fit$x, fit$z_LDH, type="l", main="absolut & LDH Z-Score")
+  
+  write.table(fit, "C:/Users/mason/Dropbox/git/Vicia/final_results/Among_branch/FL_flw5_int.csv", sep="," , row.names=F, quote=F)
+  
+  
+  
+  # FD flw1
+  fit.1<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5) ,transform='standardized')
+              ,family='ziP')
+  
+  fit.1a<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)
+               ,family='ziP')
+  
+  fit.1b<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), transform='standardized')
+               +  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1c<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)+  unlist(branch.no5)
+               ,family='ziP')
+  
+  fit.1d<- pfr(seed5 ~ lf.vd(FD, vd=unlist(branch.no5), transform='standardized')
+               + unlist(flw.no5)*unlist(branch.no5)
+               ,family='ziP')
+  AIC(fit.1, fit.1a, fit.1b, fit.1c, fit.1d)
+  
+  summary(fit.1)
+  summary(fit.1a)
+  summary(fit.1b)
+  summary(fit.1c)
+  summary(fit.1d)
+  
   
   #######################################################
   #
@@ -782,25 +1637,36 @@ p<- ggplot(fit2, aes(x= banner.arg, y= value, color=Flower_Number)) +
   
   plot(fit$FD.arg, fit$value, type="l", main="relative")
   
+  fit$z_LDH<- fit$value/fit$se
   
-  #write.table(fit, "C:/Users/mkulbaba/Dropbox/git/students/Getsemani Arteaga/seed_FD_flwNo_branch.csv", sep="," , row.names=F, quote=F)
+  plot(fit$x, fit$z_LDH, type="l", main="absolut & LDH Z-Score")
+  
+  #write.table(fit, "C:/Users/mason/Dropbox/git/Vicia/final_results/Among_branch/FD_flw5_int.csv", sep="," , row.names=F, quote=F)
   
   
-  #fit2<- read.csv("C:/Users/mkulbaba/Dropbox/git/Vicia/fit_FD_reduced.csv")
   
-  fit$FD.vd<- as.factor(fit$FD.vd)
   
-  fit$Flower_Number <- fit$FD.vd
   
-  p<- ggplot(fit, aes(x= x, y= value, color=Flower_Number)) +
-    geom_line(aes(colour = Flower_Number)) 
   
-  #geom_smooth(method =gam, formula = y ~ s(x) )
   
-  p
   
-  p + ggtitle("Selection on Flower Length") +
-    xlab("Relative flower position") + ylab("Partial regression coefficient")
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   ###################################################
