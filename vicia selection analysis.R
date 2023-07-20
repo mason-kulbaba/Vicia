@@ -61,10 +61,11 @@ f.se<- function(x) { sd(x)/sqrt(length(x)) }
 
 dat2<- dat[!is.na(dat$flw_date), ]
 
-# among branch corr
+# within branch flower trait corr
 
 library(Hmisc)
-rcorr(xmat)
+
+#dat2.1<- subset(dat2, Pos < 6)
 
 b1<- subset(dat2, Branch ==1)
 b2<- subset(dat2, Branch ==2)
