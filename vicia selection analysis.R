@@ -5,6 +5,9 @@
 #home computer
 setwd("C:/Users/mason/Dropbox/git/Vicia/")
 
+#office computer
+setwd("C:/Users/mason.kulbaba/Dropbox/git/Vicia")
+
 dat<- read.csv("vicia_final_data.csv")
 
 
