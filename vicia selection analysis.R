@@ -32,7 +32,7 @@ new.flw<- as.data.frame(table(dat$flw_date))
 
 new.flw
 
-write.table(new.flw, file="./final_results/flws_by_day.csv", sep=",", row.names = F)
+#write.table(new.flw, file="./final_results/flws_by_day.csv", sep=",", row.names = F)
 
 b.one<- subset(dat, flw_date ==1)
 b.two<- subset(dat, flw_date ==2)
@@ -736,7 +736,7 @@ fit.1.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
              + unlist(flw.no) + unlist(branch.no),family='ziP')
 
 fit.1.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw.no), transform='standardized')
-              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 AIC(fit.1, fit.1.1, fit.1.2, fit.1.3)
 
@@ -745,11 +745,13 @@ summary(fit.1.1)
 summary(fit.1.2)
 summary(fit.1.3)
 
+
+
 #output of results
 fit<- coef(fit.1.2)   #Note: are these transformed?
 
 #make absolute frstart date
-fit$x<- fit$FL.arg * fit$FL.vd
+fit$x<- fit$banner.arg * fit$banner.vd
 
 plot(fit$x, fit$value, type="l", main="absolute")
 
@@ -775,7 +777,7 @@ fit.2.2<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
               + unlist(flw.no) + unlist(branch.no),family='ziP')
 
 fit.2.3<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no), transform='standardized')
-              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 AIC(fit.2.2, fit.2.3)
 
@@ -811,7 +813,7 @@ fit.2.2<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
               + unlist(flw.no) + unlist(branch.no),family='ziP')
 
 fit.2.3<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no), transform='standardized')
-              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no)*unlist(branch.no),family='ziP')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 AIC(fit.2.2, fit.2.3)
 
