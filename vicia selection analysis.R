@@ -104,7 +104,7 @@ mflw.t.se<- aggregate(mflw.t$x, by=list(mflw.t$Group.2), f.se)
 flw1_t<- cbind(mflw.t.mean, mflw.t.se)
 
 
-write.table(flw1_t, file="final_results/all_flw_date_new_flowers.csv", sep=",", row.names = F)
+#write.table(flw1_t, file="final_results/all_flw_date_new_flowers.csv", sep=",", row.names = F)
 
 
 
@@ -113,7 +113,7 @@ mflw.1<- aggregate(b.one$Branch, by=list(b.one$PlantID, b.one$Branch), length)
 mflw.1.1<- aggregate(mflw.1$x, by=list(mflw.1$Group.2), mean)
 mflw.1.1b<- aggregate(mflw.1$x, by=list(mflw.1$Group.2), f.se)
 flw1_bch<- cbind(mflw.1.1, mflw.1.1b)
-write.table(flw1_bch, file="final_results/flw1_branches.csv", sep=",", row.names = F)
+#write.table(flw1_bch, file="final_results/flw1_branches.csv", sep=",", row.names = F)
 
 
 #Day 2
@@ -121,7 +121,7 @@ mflw.2<- aggregate(b.two$Branch, by=list(b.two$PlantID, b.two$Branch), length)
 mflw.2.2<- aggregate(mflw.2$x, by=list(mflw.2$Group.2), mean)
 mflw.2.2b<- aggregate(mflw.2$x, by=list(mflw.2$Group.2), f.se)
 flw2_bch<- cbind(mflw.2.2, mflw.2.2b)
-write.table(flw2_bch, file="final_results/flw2_branches.csv", sep=",", row.names = F)
+#write.table(flw2_bch, file="final_results/flw2_branches.csv", sep=",", row.names = F)
 
 
 #Day 3
@@ -129,42 +129,42 @@ mflw.3<- aggregate(b.three$Branch, by=list(b.three$PlantID, b.three$Branch), len
 mflw.3.3<- aggregate(mflw.3$x, by=list(mflw.3$Group.2), mean)
 mflw.3.3b<- aggregate(mflw.3$x, by=list(mflw.3$Group.2), f.se)
 flw3_bch<- cbind(mflw.3.3, mflw.3.3b)
-write.table(flw3_bch, file="final_results/flw3_branches.csv", sep=",", row.names = F)
+#write.table(flw3_bch, file="final_results/flw3_branches.csv", sep=",", row.names = F)
 
 #Day 4
 mflw.4<- aggregate(b.four$Branch, by=list(b.four$PlantID, b.four$Branch), length)
 mflw.4.4<- aggregate(mflw.4$x, by=list(mflw.4$Group.2), mean)
 mflw.4.4b<- aggregate(mflw.4$x, by=list(mflw.4$Group.2), f.se)
 flw4_bch<- cbind(mflw.4.4, mflw.4.4b)
-write.table(flw4_bch, file="final_results/flw4_branches.csv", sep=",", row.names = F)
+#write.table(flw4_bch, file="final_results/flw4_branches.csv", sep=",", row.names = F)
 
 #Day 5
 mflw.5<- aggregate(b.five$Branch, by=list(b.five$PlantID, b.five$Branch), length)
 mflw.5.5<- aggregate(mflw.5$x, by=list(mflw.5$Group.2), mean)
 mflw.5.5b<- aggregate(mflw.5$x, by=list(mflw.5$Group.2), f.se)
 flw5_bch<- cbind(mflw.5.5, mflw.5.5b)
-write.table(flw5_bch, file="final_results/flw5_branches.csv", sep=",", row.names = F)
+#write.table(flw5_bch, file="final_results/flw5_branches.csv", sep=",", row.names = F)
 
 #Day 6
 mflw.6<- aggregate(b.six$Branch, by=list(b.six$PlantID, b.six$Branch), length)
 mflw.6.6<- aggregate(mflw.6$x, by=list(mflw.6$Group.2), mean)
 mflw.6.6b<- aggregate(mflw.6$x, by=list(mflw.6$Group.2), f.se)
 flw6_bch<- cbind(mflw.6.6, mflw.6.6b)
-write.table(flw6_bch, file="final_results/flw6_branches.csv", sep=",", row.names = F)
+#write.table(flw6_bch, file="final_results/flw6_branches.csv", sep=",", row.names = F)
 
 #Day 7
 mflw.7<- aggregate(b.seven$Branch, by=list(b.seven$PlantID, b.seven$Branch), length)
 mflw.7.7<- aggregate(mflw.7$x, by=list(mflw.7$Group.2), mean)
 mflw.7.7b<- aggregate(mflw.7$x, by=list(mflw.7$Group.2), f.se)
 flw7_bch<- cbind(mflw.7.7, mflw.7.7b)
-write.table(flw7_bch, file="final_results/flw7_branches.csv", sep=",", row.names = F)
+#write.table(flw7_bch, file="final_results/flw7_branches.csv", sep=",", row.names = F)
 
 #Day 8
 mflw.8<- aggregate(b.eight$Branch, by=list(b.eight$PlantID, b.eight$Branch), length)
 mflw.8.8<- aggregate(mflw.8$x, by=list(mflw.8$Group.2), mean)
 mflw.8.8b<- aggregate(mflw.8$x, by=list(mflw.8$Group.2), f.se)
 flw8_bch<- cbind(mflw.8.8, mflw.8.8b)
-write.table(flw8_bch, file="final_results/flw8_branches.csv", sep=",", row.names = F)
+#write.table(flw8_bch, file="final_results/flw8_branches.csv", sep=",", row.names = F)
 
 
 #Day 9
@@ -172,7 +172,7 @@ mflw.9<- aggregate(b.nine$Branch, by=list(b.nine$PlantID, b.nine$Branch), length
 mflw.9.9<- aggregate(mflw.9$x, by=list(mflw.9$Group.2), mean)
 mflw.9.9b<- aggregate(mflw.9$x, by=list(mflw.9$Group.2), f.se)
 flw9_bch<- cbind(mflw.9.9, mflw.9.9b)
-write.table(flw9_bch, file="final_results/flw9_branches.csv", sep=",", row.names = F)
+#write.table(flw9_bch, file="final_results/flw9_branches.csv", sep=",", row.names = F)
 
 
 #Day 10
@@ -180,7 +180,7 @@ mflw.10<- aggregate(b.ten$Branch, by=list(b.ten$PlantID, b.ten$Branch), length)
 mflw.10.10<- aggregate(mflw.10$x, by=list(mflw.10$Group.2), mean)
 mflw.10.10b<- aggregate(mflw.10$x, by=list(mflw.10$Group.2), f.se)
 flw10_bch<- cbind(mflw.10.10, mflw.10.10b)
-write.table(flw10_bch, file="final_results/flw10_branches.csv", sep=",", row.names = F)
+#write.table(flw10_bch, file="final_results/flw10_branches.csv", sep=",", row.names = F)
 
 
 
