@@ -5,97 +5,130 @@ setwd("C:/Users/mason/Dropbox/git/Vicia/")
 #office computer
 setwd("C:/Users/mason.kulbaba/Dropbox/git/Vicia")
 
-# load data
-df<- read.csv("vicia_final_data.csv")
-
 # Load required packages
 library(refund)
 library(dplyr)
 library(tidyr)
-library(ggplot2)
+library(tibble)
 
-# aggregate seed data
-plant_seed_set <- df %>%
-  distinct(PlantID, seeds) %>%
-  drop_na(seeds)
+# Read data
+dat <- read.csv("vicia_final_data.csv")
 
-# function to make matrices for pfr
-make_fd_matrices <- function(data, value_col, id_col = "PlantID", arg_col = "PosSeq") {
-  data_sub <- data %>%
-    select(all_of(c(id_col, arg_col, value_col))) %>%
-    drop_na() %>%
-    arrange(!!sym(id_col), !!sym(arg_col))
-  
-  value_list <- split(data_sub[[value_col]], data_sub[[id_col]])
-  arg_list   <- split(data_sub[[arg_col]], data_sub[[id_col]])
-  
-  max_len <- max(lengths(value_list))
-  
-  value_mat <- t(sapply(value_list, function(x) c(x, rep(NA, max_len - length(x)))))
-  arg_mat   <- t(sapply(arg_list,   function(x) c(x, rep(NA, max_len - length(x)))))
-  
-  plant_ids <- names(value_list)
-  rownames(value_mat) <- plant_ids
-  rownames(arg_mat)   <- plant_ids
-  
-  list(value = value_mat, arg = arg_mat)
-}
+############## Functional Regression ########################################
+#############################################################################
+#
+# Functional Regression with Seed Set
+#
 
-# create functional predictor input
-B_fd   <- make_fd_matrices(df, "B")
-FL_fd  <- make_fd_matrices(df, "FL")
-FD_fd  <- make_fd_matrices(df, "FD")
-VOL_fd <- make_fd_matrices(df, "flw_vol")
-
-#match plants across all inuts
-# Get PlantIDs for each matrix
-get_ids <- function(fd) rownames(fd$value)
-
-common_ids <- Reduce(intersect, list(
-  get_ids(B_fd), get_ids(FL_fd), get_ids(FD_fd), get_ids(VOL_fd),
-  plant_seed_set$PlantID
-))
-
-# Enforce consistent ordering
-order_ids <- function(fd) {
-  list(
-    value = fd$value[common_ids, , drop = FALSE],
-    arg   = fd$arg[common_ids, , drop = FALSE]
-  )
-}
-
-B_fd   <- order_ids(B_fd)
-FL_fd  <- order_ids(FL_fd)
-FD_fd  <- order_ids(FD_fd)
-VOL_fd <- order_ids(VOL_fd)
-
-Y <- plant_seed_set %>%
-  filter(PlantID %in% common_ids) %>%
-  arrange(factor(PlantID, levels = common_ids)) %>%
-  pull(seeds)
+dat$PlantID<- as.factor(dat$PlantID)
+dat$Branch<- as.factor(dat$Branch)
 
 
 
+#maximum fruit set per plant
+seed<- aggregate(dat$seeds, by=list(dat$PlantID), sum)
 
-# Sanity check
-stopifnot(
-  nrow(B_fd$value) == length(Y),
-  nrow(FL_fd$value) == length(Y),
-  nrow(FD_fd$value) == length(Y),
-  nrow(VOL_fd$value) == length(Y)
-)
+seed$Group.1<- NULL
+
+#calcualte total flower number
+flw.no<- aggregate(dat$PosSeq, by=list(dat$PlantID), max)
+flw.no$Group.1<- NULL
+
+#calculate total number of branches
+
+bno<- dat[c("PlantID", "Branch")]
+
+bno$Branch<- as.numeric(bno$Branch)
+
+branch.no<- aggregate(bno$Branch, by=list(bno$PlantID), max)
+branch.no$Group.1<- NULL
+
+######
+# Prepare functional predictors
+B<- dat[c("PlantID","PosSeq", "B")]
+
+FL<- dat[c("PlantID","PosSeq", "FL")]
+
+FD<- dat[c("PlantID","PosSeq", "FD")]
+# Reshape into long-format matrix
+long<- reshape(B, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+B<-long
+
+# Reshape into long-format matrix
+long<- reshape(FL, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+FL<-long
+
+# Reshape into long-format matrix
+long<- reshape(FD, timevar="PosSeq", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+FD<-long
+
+
+# set up variable domain:
+# "seqpos" -> position of flower in continuous sequence (across all branches)
+seqpos<- aggregate(B$PosSeq, by=list(B$PlantID), max)
+seqpos$Group.1<- NULL
+
+seqpos<- as.matrix(seqpos)
+seqpos<- as.vector(seqpos)
 
 
 
 
+#load Refund - June 4: after chat with Lawrence: check Fig. 4 vd. 
+library(refund)
 
-# fit model with pfr
-fit <- pfr(Y ~
-             lf.vd(B_fd$value, B_fd$arg, presmooth = TRUE) +
-             lf.vd(FL_fd$value, FL_fd$arg, presmooth = TRUE) +
-             lf.vd(FD_fd$value, FD_fd$arg, presmooth = TRUE) +
-             lf.vd(VOL_fd$value, VOL_fd$arg, presmooth = TRUE)
-)
 
-summary(fit)
-plot(fit)
+fit.1<- pfr(seed ~ lf.vd(B, vd=unlist(flw.no) , transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+fit.2<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no) , transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+fit.3<- pfr(seed ~ lf.vd(FD, vd=unlist(flw.no) , transform='standardized')
+            + unlist(flw.no),family='ziP')
+
+summary(fit.1)
+
+
+##### combined
+
+fit.all <- pfr(seed ~ 
+                 lf.vd(B, vd = unlist(flw.no), basistype = "te", transform = 'standardized') +
+                 lf.vd(FD, vd = unlist(flw.no), basistype = "te", transform = 'standardized') +
+                 lf.vd(FL,  vd = unlist(flw.no), basistype = "te", transform = 'standardized') +
+                 unlist(log(flw.no)),
+               family = "negbin")
+
+summary(fit.all)
+
+########### check dists
+# Full formula (same for all models)
+model_formula <- seed ~ 
+  lf.vd(FL, vd = unlist(flw.no), transform = "standardized") +
+  lf.vd(FD, vd = unlist(flw.no), transform = "standardized") +
+  lf.vd(B,  vd = unlist(flw.no), transform = "standardized") +
+  unlist(log(flw.no))
+
+summary(model_formula)
+
+#output of results
+fit<- coef(fit.all)   #Note: are these transformed?
+
+#make absolute frstart date
+fit$x<- fit$B.arg * fit$B.vd
+
+plot(fit$x, fit$value, type="l", main="absolute")
+
+plot(fit$B.arg, fit$value, type="l", main="relative")
