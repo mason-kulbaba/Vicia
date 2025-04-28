@@ -11,11 +11,71 @@ setwd("C:/Users/mason.kulbaba/Dropbox/git/Vicia")
 dat<- read.csv("vicia_final_data.csv")
 
 
+# Calculate number of flowers opening per day
+library(dplyr)
+library(ggplot2)
+flowers_per_day <- dat %>%
+  group_by(flw_date) %>%
+  summarise(n_flowers = n())
+
+# View the result
+print(flowers_per_day)
+
+plot(flowers_per_day$flw_date, flowers_per_day$n_flowers)
+
+####################################################################
+# mean +/- SE per day
+# First, count flowers opened per PlantID per day
+flowers_by_plant_day <- dat %>%
+  group_by(PlantID, flw_date) %>%
+  summarise(n_flowers = n(), .groups = "drop")
+
+# Now, for each day, calculate mean and SE across plants
+summary_flowers <- flowers_by_plant_day %>%
+  group_by(flw_date) %>%
+  summarise(
+    mean_n_flowers = mean(n_flowers),
+    se_n_flowers = sd(n_flowers) / sqrt(n())
+  )
+
+# View the summarized data
+print(summary_flowers)
+
+# Plot mean ± SE over days
+ggplot(summary_flowers, aes(x = flw_date, y = mean_n_flowers)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean_n_flowers - se_n_flowers, ymax = mean_n_flowers + se_n_flowers), width = 0.2) +
+  labs(x = "Day of Flowering Season", y = "Mean Number of New Flowers per Plant ± SE") +
+  theme_minimal()
+
+##############################################################
+# horizontal bar plot
+# Find first and last day each plant had new flowers
+flowering_period <- dat %>%
+  group_by(PlantID) %>%
+  summarise(
+    first_day = min(flw_date, na.rm = TRUE),
+    last_day = max(flw_date, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# View the flowering periods
+print(flowering_period)
+
+# Plot horizontal bars
+ggplot(flowering_period, aes(y = reorder(PlantID, first_day), x = first_day, xend = last_day)) +
+  geom_segment(aes(x = first_day, xend = last_day, yend = PlantID), size = 2, color = "steelblue") +
+  labs(x = "Day of Flowering Season", y = "Plant ID",
+       title = "Flowering Period of Each Plant") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 6) # make y-axis readable if lots of plants
+  )
 
 library(glmmTMB)
 library(DHARMa)
 library(car)
-library(ggplot2)
 library(tidyverse)
 library(caret)
 library(emmeans)
