@@ -73,6 +73,151 @@ ggplot(flowering_period, aes(y = reorder(PlantID, first_day), x = first_day, xen
     axis.text.y = element_text(size = 6) # make y-axis readable if lots of plants
   )
 
+
+
+# mean +/- SE new flowers per day
+
+library(dplyr)
+library(ggplot2)
+
+# Count how many flowers each plant produced per day
+daily_flowering <- dat %>%
+  group_by(PlantID, flw_date) %>%
+  summarise(n_flw = n(), .groups = "drop")
+
+# Calculate mean and standard error for each day
+daily_stats <- daily_flowering %>%
+  group_by(flw_date) %>%
+  summarise(
+    mean_flw = mean(n_flw),
+    se_flw = sd(n_flw) / sqrt(n()),
+    .groups = "drop"
+  )
+
+
+# plot
+ggplot(daily_stats, aes(x = flw_date, y = mean_flw)) +
+  geom_point(size = 2.5, color = "darkblue") +
+  geom_errorbar(aes(ymin = mean_flw - se_flw, ymax = mean_flw + se_flw),
+                width = 0.3, color = "blue") +
+  scale_x_continuous(breaks = 1:17) +
+  labs(
+    x = "Day of Flowering Season (1–17)",
+    y = "Mean Number of New Flowers (± SE)",
+    title = "Mean Daily Flower Production Across Plants"
+  ) +
+  theme_minimal()
+
+# try to include branch info.
+
+# Filter for first five branches only
+dat_subset <- dat %>% filter(Branch %in% 1:5)
+
+# Count flowers per plant per day per branch
+daily_branch_flowering <- dat_subset %>%
+  group_by(Branch, PlantID, flw_date) %>%
+  summarise(n_flw = n(), .groups = "drop")
+
+# Calculate mean and SE per day for each branch
+branch_daily_stats <- daily_branch_flowering %>%
+  group_by(Branch, flw_date) %>%
+  summarise(
+    mean_flw = mean(n_flw),
+    se_flw = sd(n_flw) / sqrt(n()),
+    .groups = "drop"
+  )
+
+
+ggplot(branch_daily_stats, aes(x = flw_date, y = mean_flw, color = factor(Branch))) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = mean_flw - se_flw, ymax = mean_flw + se_flw),
+                width = 0.3) +
+  scale_color_brewer(palette = "Set1", name = "Branch") +
+  scale_x_continuous(breaks = 1:17) +
+  labs(
+    x = "Day of Flowering Season (1–17)",
+    y = "Mean Number of New Flowers (± SE)",
+    title = "Flowering Curves for First Five Branches"
+  ) +
+  theme_minimal()
+
+# smooth curves
+ggplot(branch_daily_stats, aes(x = flw_date, y = mean_flw, color = factor(Branch))) +
+  # Smoothed line for each branch
+  geom_smooth(method = "loess", se = FALSE, size = 1.2) +
+  
+  # Mean points
+  geom_point(size = 2) +
+  
+  # Error bars (± SE)
+  geom_errorbar(aes(ymin = mean_flw - se_flw, ymax = mean_flw + se_flw),
+                width = 0.3) +
+  
+  # Aesthetics
+  scale_color_brewer(palette = "Set1", name = "Branch") +
+  scale_x_continuous(breaks = 1:17) +
+  labs(
+    x = "Day of Flowering Season (1–17)",
+    y = "Mean Number of New Flowers (± SE)",
+    title = "Smoothed Flowering Curves for First Five Branches"
+  ) +
+  theme_minimal()
+
+# model anthesis rate
+library(dplyr)
+
+# Count new flowers per plant per day
+daily_flowering <- dat %>%
+  group_by(PlantID, flw_date) %>%
+  summarise(
+    n_flw = n(),
+    total_flw = n_distinct(PosSeq),
+    mean_branch = mean(Branch),
+    .groups = "drop"
+  )
+
+
+library(glmmTMB)
+
+# Fit Poisson model (can be changed to negative binomial if needed)
+model_flw <- glmmTMB(
+  n_flw ~ scale(total_flw) + scale(mean_branch) + factor(flw_date),
+  data = daily_flowering,
+  family = poisson()
+)
+
+
+summary(model_flw)
+
+library(emmeans)
+
+# Estimate marginal means across days
+em_flw <- emmeans(model_flw, ~ flw_date, type = "response")  # back-transformed means
+
+library(ggplot2)
+
+# Convert to data frame
+em_flw_df <- as.data.frame(em_flw)
+
+# Check and rename the column if necessary
+if (!"response" %in% names(em_flw_df)) {
+  names(em_flw_df)[names(em_flw_df) == "emmean"] <- "response"
+}
+
+
+ggplot(em_flw_df, aes(x = as.numeric(as.character(flw_date)), y = rate)) +
+  geom_point(size = 2.5, color = "darkgreen") +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL), width = 0.3, color = "darkgreen") +
+  labs(
+    x = "Day of Flowering Season (1–17)",
+    y = "Estimated Mean Number of New Flowers",
+    title = "Back-transformed Estimated Mean Number of New Flowers per Day"
+  ) +
+  theme_minimal()
+
+
+
+
 library(glmmTMB)
 library(DHARMa)
 library(car)
