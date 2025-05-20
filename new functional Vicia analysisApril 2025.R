@@ -49,6 +49,8 @@ gam_vol <- gam(flw_vol ~ s(pos_scaled, by = PlantID, bs = "tp") + PlantID, data 
 
 plot(gam_vol, pages = 1, scheme = 1)
 
+
+
 ##########
 #
 # test for different trajectories among plants
@@ -582,9 +584,25 @@ b.no<- as.data.frame(branch.no)
 #load Refund - June 4: after chat with Lawrence: check Fig. 4 vd. 
 library(refund)
 
-
+# check distributions: zero-inflated poisson seems best
 fit.1<- pfr(seed ~ lf.vd(B, vd=unlist(flw.no) , transform='standardized')
             + unlist(flw.no),family='ziP')
+
+fit.1a<- pfr(seed ~ lf.vd(B, vd=unlist(flw.no) , transform='standardized'),
+            offset=unlist(flw.no),family='ziP')
+
+fit.2<- pfr(seed ~ lf.vd(B, vd=unlist(flw.no) , transform='standardized')
+            + unlist(flw.no),family='nb')
+
+fit.3<- pfr(seed ~ lf.vd(B, vd=unlist(flw.no) , transform='standardized')
+            + unlist(flw.no),family=poisson(link = "log"))
+
+fit.4<- pfr(seed ~ lf.vd(B, vd=unlist(flw.no) , transform='standardized')
+            + unlist(flw.no),family=gaussian(link = "identity"))
+
+AIC(fit.1, fit.1a, fit.2, fit.3, fit.4)
+
+
 
 fit.2<- pfr(seed ~ lf.vd(FL, vd=unlist(flw.no) , transform='standardized')
             + unlist(flw.no),family='ziP')
@@ -760,7 +778,7 @@ library(glmmTMB)
 
 dat$ovules<- dat$seeds + dat$aborted + dat$unfert
 
-fit<- glmmTMB(ovules ~ PosSeq:Branch, family = "nbinom1", data=dat)
+fit<- glmmTMB(ovules ~ PosSeq + Branch + (1|PlantID), family = "nbinom1", data=dat)
 
 summary(fit)
 
@@ -768,6 +786,6 @@ plot(dat$PosSeq, dat$ovules)
 
 library(emmeans)
 
-meh<-emmeans(fit, "PosSeq", type="response")
+meh<-emmeans(fit, "Branch", type="response")
 plot(meh)
 

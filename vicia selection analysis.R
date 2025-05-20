@@ -11,6 +11,34 @@ setwd("C:/Users/mason.kulbaba/Dropbox/git/Vicia")
 dat<- read.csv("vicia_final_data.csv")
 
 
+# mean flowers per branch
+library(dplyr)
+
+branch_totals <- dat %>%
+  group_by(PlantID, Branch) %>%
+  summarise(total_flw = n(), .groups = "drop")
+
+
+aggregate(branch_totals$total_flw, by=list(branch_totals$Branch), mean)
+
+library(glmmTMB)
+
+# Poisson model
+mod_branch_flw <- glmmTMB(total_flw ~ factor(Branch), data = branch_totals, family = nbinom2())
+
+summary(mod_branch_flw)
+
+# Check residual deviance / df to see if overdispersion is present
+deviance(mod_branch_flw) / df.residual(mod_branch_flw)
+
+
+library(emmeans)
+
+em_branch <- emmeans(mod_branch_flw, ~ Branch, type = "response")
+plot(em_branch, comparisons = TRUE)  # back-transformed means with 95% CIs
+
+
+
 # Calculate number of flowers opening per day
 library(dplyr)
 library(ggplot2)
