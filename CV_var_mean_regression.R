@@ -13,8 +13,13 @@ library(dplyr)
 library(glmmTMB)
 library(car)
 
-# Relative fitness calculation
+# mean seeds per branch
 
+b_seeds<- aggregate(data$seeds, by=list(data$Branch), mean)
+
+b_seeds
+
+# Relative fitness calculation
 data$PlantID<- as.factor(data$PlantID)
 
 df<- aggregate(data$seeds, by=list(data$PlantID), sum)
