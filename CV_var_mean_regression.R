@@ -345,3 +345,436 @@ selection_results <- bind_rows(df_within, df_among)
 # view
 print(selection_results)
 dim(selection_results)
+
+
+#########################################################################
+#
+# Make a data set with the mean, sd, variance for each trait of each 
+# individual plant for each day of flowering 
+
+library(dplyr)
+
+means.ind <- data %>%
+  group_by(PlantID, flw_date) %>%
+  summarise(
+    mean_FL = mean(FL, na.rm = TRUE),
+    sd_FL = sd(FL, na.rm = TRUE),
+    var_FL = var(FL, na.rm = TRUE),
+    
+    mean_FD = mean(FD, na.rm = TRUE),
+    sd_FD = sd(FD, na.rm = TRUE),
+    var_FD = var(FD, na.rm = TRUE),
+    
+    mean_B = mean(B, na.rm = TRUE),
+    sd_B = sd(B, na.rm = TRUE),
+    var_B = var(B, na.rm = TRUE),
+    
+    mean_flw_vol = mean(flw_vol, na.rm = TRUE),
+    sd_flw_vol = sd(flw_vol, na.rm = TRUE),
+    var_flw_vol = var(flw_vol, na.rm = TRUE),
+    
+    .groups = "drop"
+  )
+
+mn<- as.data.frame(means.ind)
+
+# save mean/sd/var data to csv file for plotting
+
+write.table(mn, file="Results and Figures/means.csv", sep = ',', row.names = F)
+
+# plot
+library(ggplot2)
+
+#B
+ggplot(mn, aes(x = flw_date, y = mean_B, group = PlantID, color = PlantID)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = mean_B - sd_B, ymax = mean_B + sd_B, fill = PlantID), alpha = 0.2, color = NA) +
+  labs(
+    x = "Day of Flowering Season",
+    y = "Mean Banner Height ± SD",
+    title = "Banner Height Over Time by Plant"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")  # hides legend if too many plants
+
+#FL
+ggplot(mn, aes(x = flw_date, y = mean_FL, group = PlantID, color = PlantID)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = mean_FL - sd_FL, ymax = mean_FL + sd_FL, fill = PlantID), alpha = 0.2, color = NA) +
+  labs(
+    x = "Day of Flowering Season",
+    y = "Mean Flower Length ± SD",
+    title = "FLower Length Over Time by Plant"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")  # hides legend if too many plants
+
+#FD
+ggplot(mn, aes(x = flw_date, y = mean_FD, group = PlantID, color = PlantID)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = mean_FD - sd_FD, ymax = mean_FD + sd_FD, fill = PlantID), alpha = 0.2, color = NA) +
+  labs(
+    x = "Day of Flowering Season",
+    y = "Mean Flower Diameter ± SD",
+    title = "FLower Diameter Over Time by Plant"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")  # hides legend if too many plants
+
+####################################################################################
+#
+# Use above means in functional regressoin
+
+#maximum seed set per plant
+seed<- aggregate(data$seeds, by=list(data$PlantID), sum)
+seed$Group.1<- NULL
+
+#calcualte total flower number
+flw.no<- aggregate(data$PosSeq, by=list(data$PlantID), max)
+flw.no$Group.1<- NULL
+
+#calculate total branch number
+branch.no<- aggregate(data$Branch, by=list(data$PlantID), max)
+branch.no$Group.1<- NULL
+
+
+# Prepare functional predictors
+B<- mn[c("PlantID","flw_date", "mean_B")]
+
+FL<- mn[c("PlantID","flw_date", "mean_FL")]
+
+FD<- mn[c("PlantID","flw_date", "mean_FD")]
+
+# Reshape into long-format matrix
+long<- reshape(B, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+#rename
+banner<-long
+
+# Reshape into long-format matrix
+long<- reshape(FL, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+#rename
+fl<-long
+
+# Reshape into long-format matrix
+long<- reshape(FD, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+
+#rename
+fd<-long
+
+# set up variable domain:
+# 'flw_date' -> day of flowering season (1-18)
+flw_day<- aggregate(mn$flw_date, by=list(mn$PlantID), max)
+flw_day$Group.1<- NULL
+
+flw_day<- as.matrix(flw_day)
+flw_day<- as.vector(flw_day)
+
+
+#load Refund - . 
+library(refund)
+
+##################
+#################
+# Banner Height
+#################
+################
+
+
+fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no),family='ziP')
+
+fit.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.1)
+summary(fit.2)
+summary(fit.3)
+
+AIC(fit.1, fit.2, fit.3) # flw.no: branch.no interaction seems important
+
+
+#make absolute flower day
+fit<- coef(fit.1)
+fit$x<- fit$banner.arg * fit$banner.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+
+
+# what about stanard deviation as a functional predictor (changes over time)
+
+# Prepare functional predictors
+B.sd<- mn[c("PlantID","flw_date", "sd_B")]
+
+# Reshape into long-format matrix
+long<- reshape(B.sd, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+#rename
+sd.banner<-long
+
+
+
+fit.4.0<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+            , family='ziP')
+
+fit.4<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no),family='ziP')
+
+fit.4.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.4.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')+ lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.4.0)
+summary(fit.4)
+summary(fit.4.1)
+summary(fit.4.2)
+
+AIC(fit.1,fit.4.0, fit.4, fit.4.1, fit.4.2) # variance as functional predictor seems important
+
+fit<- coef(fit.4.1)
+fit$x<- fit$banner.arg * fit$banner.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+write.table(fit, file="Results and Figures/mean analysis/banner_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
+
+# try sd as a single (i.e., plant-level) covariate
+
+sd.b.cov<- aggregate(data$B, by=list(data$PlantID), sd)
+sd.b.cov$Group.1<- NULL
+
+fit.5.0<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + unlist(sd.b.cov)
+            ,family='ziP')
+
+fit.5<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + unlist(sd.b.cov)
+            + unlist(flw.no),family='ziP')
+
+fit.5.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + unlist(sd.b.cov)
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.5.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')+ unlist(sd.b.cov)
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.5.0)
+summary(fit.5)
+summary(fit.5.1)
+summary(fit.5.2)
+
+AIC(fit.4.0, fit.4, fit.4.1, fit.4.2,fit.5.0, fit.5, fit.5.1, fit.5.2)# fit.5 best AIC fit
+
+fit<- coef(fit.5.0)
+fit$x<- fit$banner.arg * fit$banner.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+
+# save plotting data
+write.table(fit, file="Results and Figures/mean analysis/banner_means_selection.csv", sep = ',', row.names = F)
+
+####################
+#####################
+# FLOWER LENGTH
+#####################
+####################
+fit.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no),family='ziP')
+
+fit.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.3<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.1)
+summary(fit.2)
+summary(fit.3)
+
+AIC(fit.1, fit.2, fit.3) # fit. 1 best, low AIC & simple
+
+
+#make absolute flower day
+fit<- coef(fit.1)
+fit$x<- fit$fl.arg * fit$fl.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$fl.arg, fit$value, type="l", main="relative")
+
+
+# what about stanard deviation as a functional predictor (changes over time)
+
+# Prepare functional predictors
+fl.sd<- mn[c("PlantID","flw_date", "sd_FL")]
+
+# Reshape into long-format matrix
+long<- reshape(fl.sd, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+#rename
+sd.fl<-long
+
+
+
+fit.4.0<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+              , family='ziP')
+
+fit.4<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no),family='ziP')
+
+fit.4.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.4.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')+ lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.4.0)
+summary(fit.4)
+summary(fit.4.1)
+summary(fit.4.2)
+
+AIC(fit.1,fit.2, fit.3, fit.4.0, fit.4, fit.4.1, fit.4.2) # sd as functional predictor do not seem important
+
+fit<- coef(fit.4.0)
+fit$x<- fit$fl.arg * fit$fl.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$fl.arg, fit$value, type="l", main="relative")
+write.table(fit, file="Results and Figures/mean analysis/fl_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
+
+# try sd as a single (i.e., plant-level) covariate
+
+sd.fl.cov<- aggregate(data$FL, by=list(data$PlantID), sd)
+sd.fl.cov$Group.1<- NULL
+
+fit.5.0<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+              ,family='ziP')
+
+fit.5<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+            + unlist(flw.no),family='ziP')
+
+fit.5.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.5.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.5.0)
+summary(fit.5)
+summary(fit.5.1)
+summary(fit.5.2)
+
+AIC(fit.4.0, fit.4, fit.4.1, fit.4.2,fit.5.0, fit.5, fit.5.1, fit.5.2)# fit.5.1 best AIC fit
+
+fit<- coef(fit.5.2)
+fit$x<- fit$fl.arg * fit$fl.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$fl.arg, fit$value, type="l", main="relative")
+
+# save plotting data
+write.table(fit, file="Results and Figures/mean analysis/fl_means_selection_BRANCH_FLWNO_INT.csv", sep = ',', row.names = F)
+
+####################
+#####################
+# FLOWER DIAMETER
+#####################
+####################
+fit.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no),family='ziP')
+
+fit.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.3<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.1)
+summary(fit.2)
+summary(fit.3)
+
+AIC(fit.1, fit.2, fit.3) # fit. 1 best, low AIC & simple
+
+
+#make absolute flower day
+fit<- coef(fit.1)
+fit$x<- fit$fd.arg * fit$fd.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$fd.arg, fit$value, type="l", main="relative")
+
+
+# what about stanard deviation as a functional predictor (changes over time)
+
+# Prepare functional predictors
+fd.sd<- mn[c("PlantID","flw_date", "sd_FD")]
+
+# Reshape into long-format matrix
+long<- reshape(fd.sd, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long$PlantID<- NULL
+long<- as.matrix(long)
+#rename
+sd.fd<-long
+
+
+
+fit.4.0<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+              , family='ziP')
+
+fit.4<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+            + unlist(flw.no),family='ziP')
+
+fit.4.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.4.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')+ lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.4.0)
+summary(fit.4)
+summary(fit.4.1)
+summary(fit.4.2)
+
+AIC(fit.1,fit.2, fit.3, fit.4.0, fit.4, fit.4.1, fit.4.2) # sd as functional predictor do not seem important
+
+fit<- coef(fit.4)
+fit$x<- fit$fd.arg * fit$fd.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$fd.arg, fit$value, type="l", main="relative")
+
+write.table(fit, file="Results and Figures/mean analysis/fd_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
+
+# try sd as a single (i.e., plant-level) covariate
+
+sd.fd.cov<- aggregate(data$FD, by=list(data$PlantID), sd)
+sd.fd.cov$Group.1<- NULL
+
+fit.5.0<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+              ,family='ziP')
+
+fit.5<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+            + unlist(flw.no),family='ziP')
+
+fit.5.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+              + unlist(flw.no) + unlist(branch.no),family='ziP')
+
+fit.5.2<-  pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+               + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+
+summary(fit.5.0)
+summary(fit.5)
+summary(fit.5.1)
+summary(fit.5.2)
+
+AIC(fit.4.0, fit.4, fit.4.1, fit.4.2,fit.5.0, fit.5, fit.5.1, fit.5.2)# fit.5 best AIC fit
+
+fit<- coef(fit.5)
+fit$x<- fit$fd.arg * fit$fd.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$fd.arg, fit$value, type="l", main="relative")
+
+# save plotting data
+write.table(fit, file="Results and Figures/mean analysis/fd_means_selection.csv", sep = ',', row.names = F)
