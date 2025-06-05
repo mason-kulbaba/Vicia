@@ -352,7 +352,22 @@ dim(selection_results)
 # Make a data set with the mean, sd, variance for each trait of each 
 # individual plant for each day of flowering 
 
+#home computer
+setwd("C:/Users/mason/Dropbox/git/Vicia/")
+
+#office computer
+setwd("C:/Users/mason.kulbaba/Dropbox/git/Vicia")
+
+data<- read.csv("vicia_final_data.csv")
+
+
+# Linear selection 
 library(dplyr)
+library(glmmTMB)
+library(car)
+
+
+
 
 means.ind <- data %>%
   group_by(PlantID, flw_date) %>%
@@ -361,26 +376,62 @@ means.ind <- data %>%
     sd_FL = sd(FL, na.rm = TRUE),
     var_FL = var(FL, na.rm = TRUE),
     
+    
     mean_FD = mean(FD, na.rm = TRUE),
     sd_FD = sd(FD, na.rm = TRUE),
     var_FD = var(FD, na.rm = TRUE),
+    
     
     mean_B = mean(B, na.rm = TRUE),
     sd_B = sd(B, na.rm = TRUE),
     var_B = var(B, na.rm = TRUE),
     
+    
     mean_flw_vol = mean(flw_vol, na.rm = TRUE),
     sd_flw_vol = sd(flw_vol, na.rm = TRUE),
     var_flw_vol = var(flw_vol, na.rm = TRUE),
+    
     
     .groups = "drop"
   )
 
 mn<- as.data.frame(means.ind)
 
+
+# summarize just by flower date, not by plant
+means.date <- data %>%
+  group_by(flw_date) %>%
+  summarise(
+    mean_FL = mean(FL, na.rm = TRUE),
+    sd_FL = sd(FL, na.rm = TRUE),
+    var_FL = var(FL, na.rm = TRUE),
+    
+    
+    mean_FD = mean(FD, na.rm = TRUE),
+    sd_FD = sd(FD, na.rm = TRUE),
+    var_FD = var(FD, na.rm = TRUE),
+    
+    
+    mean_B = mean(B, na.rm = TRUE),
+    sd_B = sd(B, na.rm = TRUE),
+    var_B = var(B, na.rm = TRUE),
+    
+    
+    mean_flw_vol = mean(flw_vol, na.rm = TRUE),
+    sd_flw_vol = sd(flw_vol, na.rm = TRUE),
+    var_flw_vol = var(flw_vol, na.rm = TRUE),
+    
+    
+    .groups = "drop"
+  )
+
+md<- as.data.frame(means.date)
+
+#write.table(md, file="Results and Figures/means_by_flower_date.csv", sep = ',', row.names = F)
+
 # save mean/sd/var data to csv file for plotting
 
-write.table(mn, file="Results and Figures/means.csv", sep = ',', row.names = F)
+#write.table(mn, file="Results and Figures/means.csv", sep = ',', row.names = F)
 
 # plot
 library(ggplot2)
@@ -485,21 +536,60 @@ library(refund)
 #################
 ################
 
+##################################################################
+# Note Regarding Use of Thin-Plate Splines with a Variable Domain
+##################################################################
+  #When using lf.vd(), the basistype argument (not bs) must be one of:
+  #  "s" – for univariate smooths (e.g., splines over time)
+  # "te" – for tensor product smooths
+  # "t2" – for tensor product smooths with marginal penalization
 
-fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')
+# We are using bs = "tp", which is the mgcv syntax for thin-plate splines, 
+# but this only applies when the basistype is "s", and passing the basis type to s(...) inside the model.
+
+# In contrast, in lf.vd(), the correct way to use thin-plate splines is to set:
+  #  basistype = "s" — meaning the smoother is defined with s(...)
+  # and then set bs = "tp" to specify thin-plate within that smoother
+
+######################################################################
+# Note Regarding transformaton option with variable domain
+######################################################################
+
+# The transformation argument defines how the functional predictor Xi(t) is incorporated into the model.
+
+# Options:
+# "none" (default)	Uses the functional predictor as-is
+# "standardize"	Standardizes the predictor within each curve before applying the smoother
+# "center"	Centers (mean-zero) the predictor within each curve
+# Custom function	You can supply a function to transform the predictor before smoothing
+
+
+#  Common Practice:
+  #  Use "center" or "standardize", especially when domain length or scale varies across individuals.
+
+#   These help with identifiability of the functional coefficient function β(t),
+#   avoiding confounding with the intercept.
+
+
+# If both means and SDs vary a lot, especially due to unequal sampling or units → prefer "standardize"
+fit<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
+            ,family='ziP')
+
+fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no),family='ziP')
 
-fit.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')
+fit.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')
+fit.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
+summary(fit)
 summary(fit.1)
 summary(fit.2)
 summary(fit.3)
 
-AIC(fit.1, fit.2, fit.3) # flw.no: branch.no interaction seems important
+AIC(fit, fit.1, fit.2, fit.3) # fit.1: flw.no significant
 
 
 #make absolute flower day
@@ -521,77 +611,157 @@ long<- as.matrix(long)
 #rename
 sd.banner<-long
 
-
-
-fit.4.0<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+fit.4<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")
             , family='ziP')
 
-fit.4<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+fit.4.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no),family='ziP')
 
-fit.4.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+fit.4.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp") + lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp")
             + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.4.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')+ lf.vd(sd.banner, vd=unlist(flw_day), basistype = 'te')
+fit.4.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")+ lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
-summary(fit.4.0)
 summary(fit.4)
 summary(fit.4.1)
-summary(fit.4.2)
+summary(fit.4.2) # when branch added, flower number becomes nonsig (flw.no is less important?)
+summary(fit.4.3)
 
-AIC(fit.1,fit.4.0, fit.4, fit.4.1, fit.4.2) # variance as functional predictor seems important
+AIC(fit.1, fit.4, fit.4.1, fit.4.2, fit.4.3) # variance as functional predictor seems important
 
-fit<- coef(fit.4.1)
+fit<- coef(fit.4.2)
 fit$x<- fit$banner.arg * fit$banner.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$banner.arg, fit$value, type="l", main="relative")
-write.table(fit, file="Results and Figures/mean analysis/banner_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
+
+#write.table(fit, file="Results and Figures/mean analysis/banner_means_selection_SD_FUNCTIONAL_PRED_UNTRAN.csv", sep = ',', row.names = F)
 
 # try sd as a single (i.e., plant-level) covariate
-
 sd.b.cov<- aggregate(data$B, by=list(data$PlantID), sd)
 sd.b.cov$Group.1<- NULL
 
-fit.5.0<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + unlist(sd.b.cov)
-            ,family='ziP')
+##############################################################################
+#############################################################################
+############### Playing with Distributions...again.......sigh  #############
+#############################################################################
+#############################################################################
 
-fit.5<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + unlist(sd.b.cov)
-            + unlist(flw.no),family='ziP')
+#Normal
+fit.gaus <- pfr(
+  seed ~ lf.vd(banner, vd = unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+  
+)
 
-fit.5.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te') + unlist(sd.b.cov)
-              + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.5.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = 'te')+ unlist(sd.b.cov)
-              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
+# Standard Poisson
+fit.poisson <- pfr(
+  seed ~ lf.vd(banner, vd = unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov),
+  family = poisson(link = "log")
+)
 
-summary(fit.5.0)
+# Negative Binomial (with log link)
+fit.nb <- pfr(
+  seed ~ lf.vd(banner, vd = unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov),
+  family = nb(link = "log")
+)
+
+# Tweedie — for continuous skewed counts
+fit.tweedie <- pfr(
+  seed ~ lf.vd(banner, vd = unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov),
+  family = tw(link = "log")
+)
+
+
+# Zero-inflated Poisson-like smoothing model (ziplss) — allows modeling zero vs. count parts separately
+system.time({
+fit.ziplss <- pfr(
+  seed ~ lf.vd(banner, vd = unlist(flw_day), basistype = "s", bs = "tp",k=10, transform = "standardized") + unlist(sd.b.cov),
+  family = ziplss()
+)
+
+})
+# Compare AIC
+AIC(fit.gaus, fit.poisson, fit.nb, fit.tweedie)
+
+# Calculate b for zip
+
+seeds<- seed$x
+
+# Step 1: Fit a Poisson model
+m.pois <- glm(seeds ~ 1, family = poisson)
+
+# Step 2: Get predicted mean (lambda)
+lambda <- predict(m.pois, type = "response")[1]  # scalar; intercept-only model
+
+# Step 3: Expected number of zeros under Poisson
+expected_zeros <- length(seed) * dpois(0, lambda = lambda)
+
+# Step 4: Observed zeros
+observed_zeros <- sum(seed == 0)
+
+# Step 5: Structural zeros estimated as excess
+excess_zeros <- observed_zeros - expected_zeros
+pi_hat <- excess_zeros / length(seed)
+
+# Clamp to [0.001, 0.99]
+pi_hat <- max(0.001, min(pi_hat, 0.99))
+
+# Step 6: Convert to logit scale
+b <- log(pi_hat / (1 - pi_hat))
+
+# Print
+cat("Observed zeros:", observed_zeros, "\n")
+cat("Expected Poisson zeros:", round(expected_zeros, 2), "\n")
+cat("Estimated π (structural zeros):", round(pi_hat, 3), "\n")
+cat("Corresponding b:", round(b, 3), "\n") # fix this later, b= -1.05
+
+
+
+fit.N<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "noInteraction"), family = ziP(theta = NULL, link = "identity",b=-1.05))
+
+fit.5<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "noInteraction") + unlist(sd.b.cov)
+            ,family =ziP(theta = NULL, link = "identity",b=-1.05))
+
+fit.5.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "noInteraction") + unlist(sd.b.cov)
+            + unlist(flw.no),family = ziP(theta = NULL, link = "identity",b=-1.05))
+
+fit.5.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "noInteraction") + unlist(sd.b.cov)
+              + unlist(flw.no) + unlist(branch.no),family =ziP(theta = NULL, link = "identity",b=-1.05))
+
+fit.5.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "noInteraction")+ unlist(sd.b.cov)
+              + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family = ziP(theta = NULL, link = "identity",b=-1.05))
+summary(fit.N)
 summary(fit.5)
 summary(fit.5.1)
 summary(fit.5.2)
+summary(fit.5.3)
 
-AIC(fit.4.0, fit.4, fit.4.1, fit.4.2,fit.5.0, fit.5, fit.5.1, fit.5.2)# fit.5 best AIC fit
+AIC(fit.N, fit.5, fit.5.1, fit.5.2, fit.5.3)# fit.5 best AIC fit
 
-fit<- coef(fit.5.0)
+#library(mgcv)
+gam.check(fit.5)
+
+fit<- coef(fit.5)
 fit$x<- fit$banner.arg * fit$banner.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$banner.arg, fit$value, type="l", main="relative")
 
 # save plotting data
-write.table(fit, file="Results and Figures/mean analysis/banner_means_selection.csv", sep = ',', row.names = F)
+write.table(fit, file="Results and Figures/mean analysis/banner_means_selection_just_sd_cov_standardized2.csv", sep = ',', row.names = F)
 
 ####################
 #####################
 # FLOWER LENGTH
 #####################
 ####################
-fit.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')
+fit.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no),family='ziP')
 
-fit.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')
+fit.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.3<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')
+fit.3<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 summary(fit.1)
@@ -622,16 +792,16 @@ sd.fl<-long
 
 
 
-fit.4.0<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+fit.4.0<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day),basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.fl, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
               , family='ziP')
 
-fit.4<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+fit.4<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day),basistype = "s", bs = "tp" ,transform = "standardized") + lf.vd(sd.fl, vd=unlist(flw_day),  basistype = "s", bs = "tp",transform = "standardized")
             + unlist(flw.no),family='ziP')
 
-fit.4.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+fit.4.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day),basistype = "s", bs = "tp" ,transform = "standardized") + lf.vd(sd.fl, vd=unlist(flw_day),  basistype = "s", bs = "tp",transform = "standardized")
               + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.4.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te')+ lf.vd(sd.fl, vd=unlist(flw_day), basistype = 'te')
+fit.4.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day),basistype = "s", bs = "tp",transform = "standardized")+ lf.vd(sd.fl, vd=unlist(flw_day),  basistype = "s", bs = "tp",transform = "standardized")
               + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 summary(fit.4.0)
@@ -641,7 +811,7 @@ summary(fit.4.2)
 
 AIC(fit.1,fit.2, fit.3, fit.4.0, fit.4, fit.4.1, fit.4.2) # sd as functional predictor do not seem important
 
-fit<- coef(fit.4.0)
+fit<- coef(fit.4)
 fit$x<- fit$fl.arg * fit$fl.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fl.arg, fit$value, type="l", main="relative")
@@ -652,24 +822,30 @@ write.table(fit, file="Results and Figures/mean analysis/fl_means_selection_SD_F
 sd.fl.cov<- aggregate(data$FL, by=list(data$PlantID), sd)
 sd.fl.cov$Group.1<- NULL
 
-fit.5.0<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+fit.N<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") ,family='ziP')
+
+fit.5<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fl.cov)
               ,family='ziP')
 
-fit.5<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+fit.5.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fl.cov)
             + unlist(flw.no),family='ziP')
 
-fit.5.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+fit.5.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fl.cov)
               + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.5.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fl.cov)
+fit.5.3<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fl.cov)
               + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
-summary(fit.5.0)
+summary(fit.N)
 summary(fit.5)
 summary(fit.5.1)
 summary(fit.5.2)
+summary(fit.5.3)
 
-AIC(fit.4.0, fit.4, fit.4.1, fit.4.2,fit.5.0, fit.5, fit.5.1, fit.5.2)# fit.5.1 best AIC fit
+
+AIC(fit.N,fit.5, fit.5.1, fit.5.2, fit.5.3)# fit.5.1 best AIC fit
+
+gam.check(fit.5)
 
 fit<- coef(fit.5.2)
 fit$x<- fit$fl.arg * fit$fl.vd
@@ -677,20 +853,20 @@ plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fl.arg, fit$value, type="l", main="relative")
 
 # save plotting data
-write.table(fit, file="Results and Figures/mean analysis/fl_means_selection_BRANCH_FLWNO_INT.csv", sep = ',', row.names = F)
+write.table(fit, file="Results and Figures/mean analysis/fl_means_selection.csv", sep = ',', row.names = F)
 
 ####################
 #####################
 # FLOWER DIAMETER
 #####################
 ####################
-fit.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')
+fit.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp")
             + unlist(flw.no),family='ziP')
 
-fit.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')
+fit.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
             + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.3<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')
+fit.3<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day),basistype = "s", bs = "tp",transform = "standardized")
             + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 summary(fit.1)
@@ -721,16 +897,16 @@ sd.fd<-long
 
 
 
-fit.4.0<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+fit.4.0<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
               , family='ziP')
 
-fit.4<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+fit.4<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day),basistype = "s", bs = "tp",transform = "standardized")
             + unlist(flw.no),family='ziP')
 
-fit.4.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+fit.4.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day),basistype = "s", bs = "tp",transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
               + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.4.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te')+ lf.vd(sd.fd, vd=unlist(flw_day), basistype = 'te')
+fit.4.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")+ lf.vd(sd.fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
               + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
 summary(fit.4.0)
@@ -740,7 +916,7 @@ summary(fit.4.2)
 
 AIC(fit.1,fit.2, fit.3, fit.4.0, fit.4, fit.4.1, fit.4.2) # sd as functional predictor do not seem important
 
-fit<- coef(fit.4)
+fit<- coef(fit.4.0)
 fit$x<- fit$fd.arg * fit$fd.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fd.arg, fit$value, type="l", main="relative")
@@ -752,24 +928,28 @@ write.table(fit, file="Results and Figures/mean analysis/fd_means_selection_SD_F
 sd.fd.cov<- aggregate(data$FD, by=list(data$PlantID), sd)
 sd.fd.cov$Group.1<- NULL
 
-fit.5.0<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
-              ,family='ziP')
 
-fit.5<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+fit.N<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") ,family='ziP')
+
+fit.5<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fd.cov)
+              ,family='ziP', method = "GCV.Cp")
+
+fit.5.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fd.cov)
             + unlist(flw.no),family='ziP')
 
-fit.5.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+fit.5.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fd.cov)
               + unlist(flw.no) + unlist(branch.no),family='ziP')
 
-fit.5.2<-  pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = 'te') + unlist(sd.fd.cov)
+fit.5.3<-  pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fd.cov)
                + unlist(flw.no) + unlist(branch.no) + unlist(flw.no):unlist(branch.no),family='ziP')
 
-summary(fit.5.0)
+summary(fit.N)
 summary(fit.5)
 summary(fit.5.1)
 summary(fit.5.2)
+summary(fit.5.3)
 
-AIC(fit.4.0, fit.4, fit.4.1, fit.4.2,fit.5.0, fit.5, fit.5.1, fit.5.2)# fit.5 best AIC fit
+AIC(fit.N , fit.5, fit.5.1, fit.5.2, fit.5.3)# fit.5 best AIC fit
 
 fit<- coef(fit.5)
 fit$x<- fit$fd.arg * fit$fd.vd
@@ -777,4 +957,4 @@ plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fd.arg, fit$value, type="l", main="relative")
 
 # save plotting data
-write.table(fit, file="Results and Figures/mean analysis/fd_means_selection.csv", sep = ',', row.names = F)
+write.table(fit, file="Results and Figures/mean analysis/fd_means_selection_BRANCH_FLWNO.csv", sep = ',', row.names = F)
