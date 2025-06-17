@@ -354,5 +354,6 @@ ggplot(across_pos, aes(x = pair, y = factor(Pos), fill = correlation)) +
   ) +
   theme_minimal(base_size = 13)
 ```
+Floral integration at same flower position (1-5) across racemes (1-5) was moderate and consistent. However, floral integration within racemes disappeared with successive racemes for FL-FD and FD-B pairs. Only FL-B maintained a consistent and significant correlation. 
 
 # References
