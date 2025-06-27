@@ -64,11 +64,11 @@ mod_global.b <- gam(B ~ s(pos_scaled), data = data,
                     family = Gamma(link = "log"))
 
 # Model 2: Global spline + plant-specific deviations
-mod_plant <- gam(FL ~ s(pos_scaled) + s(pos_scaled, PlantID, bs = "fs"), data = data,
+mod_plant <- gam(FL ~ s(pos_scaled) + s(pos_scaled, PlantID, bs = "tp"), data = data,
                  family = Gamma(link = "log"))
-mod_plant.fd <- gam(FD ~ s(pos_scaled) + s(pos_scaled, PlantID, bs = "fs"), data = data,
+mod_plant.fd <- gam(FD ~ s(pos_scaled) + s(pos_scaled, PlantID, bs = "tp"), data = data,
                     family = Gamma(link = "log"))
-mod_plant.b <- gam(B ~ s(pos_scaled) + s(pos_scaled, PlantID, bs = "fs"), data = data,
+mod_plant.b <- gam(B ~ s(pos_scaled) + s(pos_scaled, PlantID, bs = "tp"), data = data,
                    family = Gamma(link = "log"))
 
 # Compare models
@@ -300,7 +300,7 @@ global_data.b$fit <- predict(gam(B ~ s(pos_scaled), data = data), newdata = glob
 
 # Plot FL data as example. Other figures made in SigmaPlot
 ggplot() +
-  geom_line(data = newdata, aes(x = pos_scaled, y = FL_pred, group = PlantID),
+  geom_line(data = newdata.fl, aes(x = pos_scaled, y = FL_pred, group = PlantID),
             color = "grey70", size = 0.6) +
   geom_line(data = global_data, aes(x = pos_scaled, y = FL_pred),
             color = "black", size = 1.2) +
@@ -356,12 +356,12 @@ summary_flowers <- flowers_by_plant_day %>%
 # View the summarized data
 print(summary_flowers)
 
-# Plot mean ± SE over days
+# Plot mean B1 SE over days
 ggplot(summary_flowers, aes(x = flw_date, y = mean_n_flowers)) +
   geom_point() +
   geom_line() +
   geom_errorbar(aes(ymin = mean_n_flowers - se_n_flowers, ymax = mean_n_flowers + se_n_flowers), width = 0.2) +
-  labs(x = "Day of Flowering Season", y = "Mean Number of New Flowers per Plant ± SE") +
+  labs(x = "Day of Flowering Season", y = "Mean Number of New Flowers per Plant B1 SE") +
   theme_minimal()
 
 ##############################################################
@@ -720,11 +720,11 @@ library(tibble)
 data <- dat %>%
   mutate(BranchID = paste(PlantID, Branch, sep = "_"))
 
-# Optional: Filter to Pos ≤ 30 if flower positions get very high
+# Optional: Filter to Pos b	$ 30 if flower positions get very high
 data <- data %>%
   filter(Pos <= 30)
 
-# STEP 2: Function to create wide matrix of trait values by BranchID × Pos
+# STEP 2: Function to create wide matrix of trait values by BranchID C Pos
 reshape_branch_trait <- function(data, trait_name) {
   data %>%
     select(BranchID, Pos, !!sym(trait_name)) %>%

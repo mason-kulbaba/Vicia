@@ -57,7 +57,13 @@ This document provides code to reproduce all results from the manuscript `Charac
    
  * The version of the `refund` package used to make this document is
    `r packageVersion("refund")`.
-
+   
+* The version of the `mgcv` package used to make this document is
+   `r packageVersion("mgcv")`.
+   
+* The version of the `tibble` package used to make this document is
+   `r packageVersion("tibble")`.
+   
 Attach packages.
 ```{r package}
 
@@ -71,7 +77,8 @@ suppressMessages(library("Hmisc"))
 suppressMessages(library("tidyr"))
 suppressMessages(library("viridis"))
 suppressMessages(library("refund"))
-
+suppressMessages(library("mgcv"))
+suppressMessages(library("tibble"))
 ```
 
 # Data
@@ -163,7 +170,7 @@ traits<- cbind(mean.B, mean.FL, mean.FD)
 sel.data<- merge(traits, plant.seeds)
 
 #check
-sel.data
+head(sel.data)
 
 ```
 
@@ -355,5 +362,300 @@ ggplot(across_pos, aes(x = pair, y = factor(Pos), fill = correlation)) +
   theme_minimal(base_size = 13)
 ```
 Floral integration at same flower position (1-5) across racemes (1-5) was moderate and consistent. However, floral integration within racemes disappeared with successive racemes for FL-FD and FD-B pairs. Only FL-B maintained a consistent and significant correlation. 
+
+# Describe Subindividual Variation in Floral Traits
+The goal is to describe the general pattern of within-individual floral trait variation, across all flower positions and racemes. Therefore, we will be using the variable `PosSeq` that describes the continuous flower position across all racemes on a plant. Generalized additive models (`gam`) from the package `mgcv` will be used to fit spline function to describe trait variation across continuous flower positions. 
+
+First, need to standardize the flower positions within each plant. This is done as all plants do not have the same number of flowers. This will be important when applying functional regression, when the functional predictor has a variable domain. Note, we are using thin-plate splines, which are appropriate for variable domains. This will be ***required*** for functional regression, so it is appropriate to describe the patterns with the same basis type. Traditional b-splines have a standardized number of knots across all individuals, which is not appropriate when the number of data points across individuals is variable. Thin-plate splines (`bs="tp"`) allows for more flexibility (with an appropriate penalty) in knot placement, to accommodate the varible number of flowers across individual plants.  
+```{r standardize flower positions}
+dat <- data %>%
+  group_by(PlantID) %>%
+  mutate(pos_scaled = (PosSeq - min(PosSeq)) / (max(PosSeq) - min(PosSeq))) %>%
+  ungroup()
+
+dat$PlantID<- as.factor(dat$PlantID)
+```
+
+Next, fit GAM models for each trait across PosSeq using plant-specific smooths. 
+```{r fit gam models}
+# Flower Length (FL)
+gam_FL <- gam(FL ~ s(pos_scaled, by = PlantID, bs = "tp") + PlantID, data = dat)
+
+
+
+# Flower Diameter (FD)
+gam_FD <- gam(FD ~ s(pos_scaled, by = PlantID, bs = "tp") + PlantID, data = dat)
+
+
+
+# Banner height (B)
+gam_B <- gam(B ~ s(pos_scaled, by = PlantID, bs = "tp") + PlantID, data = dat)
+
+```
+
+## Variation in individual plant trajectories 
+The above shows that the GAM models describe significant within-individual variation in floral traits. Now see if individual plant trajectories (e.g., patterns of within-individual variation) significantly varies.
+
+Start by fitting only global models (no individual plant effects).
+```{r variation among plants}
+# Model 1: Global spline only
+mod_global.fl <- gam(FL ~ s(pos_scaled, bs="tp"), data = dat,
+                  family = Gamma(link = "log"))
+
+mod_global.fd <- gam(FD ~ s(pos_scaled, bs="tp"), data = dat,
+                     family = Gamma(link = "log"))
+
+mod_global.b <- gam(B ~ s(pos_scaled, bs="tp"), data = dat,
+                    family = Gamma(link = "log"))
+
+```
+
+Now add individual plant effects.
+```{r global + plant effects}
+# Model 2: Global spline + plant-specific deviations
+mod_plant.fl <- gam(FL ~ s(pos_scaled, bs="tp") + s(pos_scaled, by=PlantID, bs = "tp"), data = dat,
+                 family = Gamma(link = "log"))
+
+mod_plant.fd <- gam(FD ~ s(pos_scaled, bs="tp") + s(pos_scaled, by=PlantID, bs = "tp"), data = dat,
+                    family = Gamma(link = "log"))
+
+mod_plant.b <- gam(B ~ s(pos_scaled, bs="tp") + s(pos_scaled, by=PlantID, bs = "tp"), data = dat,
+                   family = Gamma(link = "log"))
+```
+
+Now compare global and global + individual plant models
+```{r model comparision}
+# Compare models
+anova(mod_global.fl, mod_plant.fl, test = "Chisq")
+anova(mod_global.fd, mod_plant.fd, test = "Chisq")
+anova(mod_global.b, mod_plant.b, test = "Chisq")
+```
+All three floral traits show significant differences among individual plant trajectories. 
+
+Now include total flowers for each plant as a covariate. 
+```{r compute total flowers}
+# Compute total flowers per PlantID
+dat <- data %>%
+  group_by(PlantID) %>%
+  mutate(total_flw = n()) %>%
+  ungroup()
+
+dat2 <- dat %>%
+  group_by(PlantID) %>%
+  mutate(pos_scaled = (PosSeq - min(PosSeq)) / (max(PosSeq) - min(PosSeq))) %>%
+  mutate(total_flw = n()) %>%
+  ungroup()
+
+head(dat2)
+
+```
+
+Rerun models with covariate of total number of flowers.
+```{r gam models with PlantID and total flowers}
+
+mod.fl <- gam(FL ~ s(pos_scaled) + s(pos_scaled, by=PlantID, bs = "tp") + total_flw, 
+           data = dat2,
+           family = Gamma(link = "log"))
+
+mod.fd <- gam(FD ~ s(pos_scaled) + s(pos_scaled, by=PlantID, bs = "tp") + total_flw, 
+           data = dat2,
+           family = Gamma(link = "log"))
+
+mod.b <- gam(B ~ s(pos_scaled) + s(pos_scaled, by=PlantID, bs = "tp") + total_flw, data = dat2,
+             family = Gamma(link = "log"))
+
+```
+
+Generate predicted values for plotting. Start with a grid to place predicted values.
+```{r predicted values set up}
+# Generate prediction grid
+unique_plants <- unique(data$PlantID)
+
+# Sequence of positions from 0 to 1 (because pos_scaled is standardized)
+pos_grid <- seq(0, 1, length.out = 100)
+
+# Total flower counts for each plant
+plant_info <- dat2 %>%
+  group_by(PlantID) %>%
+  summarise(total_flw = first(total_flw))  # or n(), same result here
+
+# Expand grid for predictions for each floral trait
+newdata.fl <- expand_grid(
+  PlantID = unique(data$PlantID),
+  pos_scaled = pos_grid
+) %>%
+  left_join(plant_info, by = "PlantID")
+
+
+newdata.fd <- expand_grid(
+  PlantID = unique(data$PlantID),
+  pos_scaled = pos_grid
+) %>%
+  left_join(plant_info, by = "PlantID")
+
+
+newdata.b <- expand_grid(
+  PlantID = unique(data$PlantID),
+  pos_scaled = pos_grid
+) %>%
+  left_join(plant_info, by = "PlantID")
+```
+
+Now add predicted values from each trait-specific GAM model.
+```{r add predicted values to grids}
+newdata.fl$FL_pred <- predict(mod.fl, newdata = newdata.fl, type = "response")
+
+newdata.fd$FD_pred<- predict(mod.fd, newdata = newdata.fd, type = "response")
+
+newdata.b$B_pred<- predict(mod.b, newdata = newdata.b, type = "response")
+
+```
+
+Refit global GAM models (now with total flower number as covariate), and generate predicted values (use mean total flower number during prediction) for each floral trait.
+```{r global GAM models with tot.flw and predcitions}
+# 1. Global spline dataset (no PlantID)
+mod_global <- gam(FL ~ s(pos_scaled) + total_flw, data = dat2,
+                  family = Gamma(link = "log"))
+
+global_data.fl <- data.frame(
+  pos_scaled = pos_grid,
+  total_flw = mean(dat2$total_flw)  # average value
+)
+global_data.fl$FL_pred <- predict(mod_global, newdata = global_data.fl, type = "response")
+
+
+
+mod_global.fd <- gam(FD ~ s(pos_scaled) + total_flw, data = dat2,
+                     family = Gamma(link = "log"))
+
+global_data.fd <- data.frame(
+  pos_scaled = pos_grid,
+  total_flw = mean(dat2$total_flw)  # average value
+)
+global_data.fd$FD_pred <- predict(mod_global.fd, newdata = global_data.fd, type = "response")
+
+
+mod_global.b <- gam(B ~ s(pos_scaled) + total_flw, data = dat2,
+                    family = Gamma(link = "log"))
+
+global_data.b <- data.frame(
+  pos_scaled = pos_grid,
+  total_flw = mean(dat2$total_flw)  # average value
+)
+global_data.b$B_pred <- predict(mod_global.b, newdata = global_data.b, type = "response")
+```
+
+Plot example of individual and global splines. Only showing plot for FL to save space. All data was written to .csv files, and plotted in SigmaPlot. Output .csv files for all three traits are found in the Results folder of the Zenodo repository. 
+```{r show plot }
+ggplot() +
+  geom_line(data = newdata.fl, aes(x = pos_scaled, y = FL_pred, group = PlantID),
+            color = "grey70", size = 0.6) +
+  geom_line(data = global_data.fl, aes(x = pos_scaled, y = FL_pred),
+            color = "black", size = 1.2) +
+  labs(
+    x = "Standardized Flower Position",
+    y = "Predicted Flower Length (mm)",
+    title = "Variation of Subindividual Flower Lenghth with Global Average"
+  ) +
+  theme_minimal()
+```
+
+# Coefficient of Variation 
+Calculate mean, variance, and CV ($\frac{\sigma}{\bar{x}}$) for all traits. 
+```{r calculate mean, var, and CV}
+trait_stats <- data %>%
+  group_by(PlantID) %>%
+  summarise(
+    FL_mean = mean(FL, na.rm = TRUE),
+    FL_var  = var(FL, na.rm = TRUE),
+    FL_cv   = sqrt(FL_var) / FL_mean,
+    
+    FD_mean = mean(FD, na.rm = TRUE),
+    FD_var  = var(FD, na.rm = TRUE),
+    FD_cv   = sqrt(FD_var) / FD_mean,
+    
+    B_mean  = mean(B, na.rm = TRUE),
+    B_var   = var(B, na.rm = TRUE),
+    B_cv    = sqrt(B_var) / B_mean
+  )
+```
+## Variance and mean scaling
+In order for CV to be informative, the mean must scale with the standard deviation. Therefore, perform a simple linear regression of trait variance on trait mean. See @herrera_multiplicity_2009 for details. 
+```{r regression of mean on sd}
+# FL: variance ~ mean
+lm_FL <- lm(FL_var ~ FL_mean, data = trait_stats)
+summary(lm_FL)
+
+# FD: variance ~ mean
+lm_FD <- lm(FD_var ~ FD_mean, data = trait_stats)
+summary(lm_FD)
+
+# B: variance ~ mean
+lm_B <- lm(B_var ~ B_mean, data = trait_stats)
+summary(lm_B)
+```
+
+Make a quick plot to show relationship with flower length as an example.  
+```{r regression plot for FL variance and mean}
+ggplot(trait_stats, aes(x = FL_mean, y = FL_var)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Variance scaling for FL", x = "Mean FL", y = "Variance FL")
+```
+Yes, positive relationship and therefore justification for using CV to describe variability. 
+
+# Functional Regression
+As a comparison to standardized linear selection estimates, the following employs functional regression to estimate selection along gradients of within-individual floral variation. We used scalar-on-function regression, with total number of seeds as a scalar response variable, and thin-plate spline functions to describe floral-trait gradients as explanatory variables. To facilitate variation in total flower number across individual plants, we employed the variable domain function in the package `Refund`. 
+
+## Mean traits per flowering day
+As an initial analysis, mean values were calculated for all three traits for each day of the flowering period (day 1-17). These means would approximate what a pollinator would encounter on each day of flowering, including the mean change in floral traits. 
+
+```{r mean traits by flowering day}
+means.ind <- data %>%
+  group_by(PlantID, flw_date) %>%
+  summarise(
+    mean_FL = mean(FL, na.rm = TRUE),
+    sd_FL = sd(FL, na.rm = TRUE),
+    var_FL = var(FL, na.rm = TRUE),
+    
+    
+    mean_FD = mean(FD, na.rm = TRUE),
+    sd_FD = sd(FD, na.rm = TRUE),
+    var_FD = var(FD, na.rm = TRUE),
+    
+    
+    mean_B = mean(B, na.rm = TRUE),
+    sd_B = sd(B, na.rm = TRUE),
+    var_B = var(B, na.rm = TRUE),
+    
+    
+    mean_flw_vol = mean(flw_vol, na.rm = TRUE),
+    sd_flw_vol = sd(flw_vol, na.rm = TRUE),
+    var_flw_vol = var(flw_vol, na.rm = TRUE),
+    
+    
+    .groups = "drop"
+  )
+
+mn<- as.data.frame(means.ind)
+```
+
+Now plot to visualize change. Just showing plot for banner height to save space.
+```{r plot means over time}
+#Banner
+ggplot(mn, aes(x = flw_date, y = mean_B, group = PlantID, color = PlantID)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = mean_B - sd_B, ymax = mean_B + sd_B, fill = PlantID), alpha = 0.2, color = NA) +
+  labs(
+    x = "Day of Flowering Season",
+    y = "Mean Banner Height ± SD",
+    title = "Banner Height Over Time by Plant"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")  # hides legend
+```
+
+## Functional regression on mean traits
+
 
 # References

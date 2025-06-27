@@ -118,7 +118,6 @@ get_cor_stats <- function(x, y) {
 
 
 #within raceme integration
-
 within_raceme <- data %>%
   filter(Branch %in% 1:5, Pos %in% 1:5) %>%
   group_by(Branch) %>%
@@ -570,13 +569,21 @@ library(refund)
 #   These help with identifiability of the functional coefficient function β(t),
 #   avoiding confounding with the intercept.
 
+# try sd as a single (i.e., plant-level) covariate
+sd.b.cov<- aggregate(data$B, by=list(data$PlantID), sd)
+sd.b.cov$Group.1<- NULL
 
 # If both means and SDs vary a lot, especially due to unequal sampling or units → prefer "standardize"
 fit<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
             ,family='ziP')
 
-fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
-            + unlist(flw.no),family='ziP')
+fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp")
+            + unlist(flw.no),family='poisson')
+
+fit.1b<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+            + unlist(flw.no),family='poisson')
+
+fit.1.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day)) + unlist(sd.b.cov) + unlist(flw.no),family='ziP')
 
 fit.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no) + unlist(branch.no),family='ziP')
@@ -586,18 +593,21 @@ fit.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),basistype = "s", bs = "tp", 
 
 summary(fit)
 summary(fit.1)
+summary(fit.1.1)
+summary(fit.1b)
 summary(fit.2)
 summary(fit.3)
 
-AIC(fit, fit.1, fit.2, fit.3) # fit.1: flw.no significant
+AIC(fit, fit.1, fit.1b, fit.1.1, fit.2, fit.3) # fit.1: flw.no significant
 
-
+AIC(fit.1.1)
 #make absolute flower day
-fit<- coef(fit.1)
-fit$x<- fit$banner.arg * fit$banner.vd
+fit<- coef(fit.1.1)
+fit$x<- fit$fl.arg * fit$fl.vd
 plot(fit$x, fit$value, type="l", main="absolute")
-plot(fit$banner.arg, fit$value, type="l", main="relative")
+plot(fit$fl.arg, fit$value, type="l", main="relative")
 
+write.table(fit, file="Vicia Analysis/Results/FR/FL_sd_flw.csv", sep=",", row.names = FALSE)
 
 # what about stanard deviation as a functional predictor (changes over time)
 
@@ -635,7 +645,33 @@ fit$x<- fit$banner.arg * fit$banner.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$banner.arg, fit$value, type="l", main="relative")
 
-#write.table(fit, file="Results and Figures/mean analysis/banner_means_selection_SD_FUNCTIONAL_PRED_UNTRAN.csv", sep = ',', row.names = F)
+
+# final banner work
+fit.4.2.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized"),family='poisson')
+
+fit.4.2.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")+ unlist(flw.no),family='poisson')
+
+fit.4.2.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")+ unlist(flw.no) + unlist(branch.no),family='poisson')
+
+fit.4.2.4<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp")
+              ,family='ziP')
+
+fit.4.2.5<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")
+                + unlist(flw.no),family='poisson')
+
+fit.4.2.6<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.banner, vd=unlist(flw_day),  basistype = "s", bs = "tp", transform = "standardized")
+                + unlist(flw.no) + unlist(branch.no),family='poisson')
+
+AIC(fit.4.2.1, fit.4.2.2, fit.4.2.3, fit.4.2.4, fit.4.2.5, fit.4.2.6)
+
+summary(fit.4.2.4)
+
+fit<- coef(fit.4.2.4)
+fit$x<- fit$banner.arg * fit$banner.vd
+plot(fit$x, fit$value, type="l", main="absolute")
+plot(fit$banner.arg, fit$value, type="l", main="relative")
+
+write.table(fit, file="Vicia Analysis/Results/FR/banner_means_selection_SD_FUNCTIONAL_PRED_UNTRAN.csv", sep = ',', row.names = F)
 
 # try sd as a single (i.e., plant-level) covariate
 sd.b.cov<- aggregate(data$B, by=list(data$PlantID), sd)
@@ -770,9 +806,21 @@ summary(fit.3)
 
 AIC(fit.1, fit.2, fit.3) # fit. 1 best, low AIC & simple
 
+# try sd as a single (i.e., plant-level) covariate
+
+sd.fl.cov<- aggregate(data$FL, by=list(data$PlantID), sd)
+sd.fl.cov$Group.1<- NULL
+
+fit.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
+            + unlist(flw.no) + unlist(branch.no),family='ziP')
+fit.2.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp")
+            + unlist(sd.fl.cov) + unlist(flw.no),family='poisson')
+
+AIC(fit.2, fit.2.1)
+summary(fit.2.1)
 
 #make absolute flower day
-fit<- coef(fit.1)
+fit<- coef(fit.2.1)
 fit$x<- fit$fl.arg * fit$fl.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fl.arg, fit$value, type="l", main="relative")
@@ -815,7 +863,7 @@ fit<- coef(fit.4)
 fit$x<- fit$fl.arg * fit$fl.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fl.arg, fit$value, type="l", main="relative")
-write.table(fit, file="Results and Figures/mean analysis/fl_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
+write.table(fit, file="Vicia Analysis/Results/FR/fl_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
 
 # try sd as a single (i.e., plant-level) covariate
 
@@ -845,7 +893,6 @@ summary(fit.5.3)
 
 AIC(fit.N,fit.5, fit.5.1, fit.5.2, fit.5.3)# fit.5.1 best AIC fit
 
-gam.check(fit.5)
 
 fit<- coef(fit.5.2)
 fit$x<- fit$fl.arg * fit$fl.vd
@@ -900,7 +947,7 @@ sd.fd<-long
 fit.4.0<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
               , family='ziP')
 
-fit.4<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day),basistype = "s", bs = "tp",transform = "standardized")
+fit.4<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day),basistype = "s", bs = "tp", transform = "standardized")
             + unlist(flw.no),family='ziP')
 
 fit.4.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day),basistype = "s", bs = "tp",transform = "standardized") + lf.vd(sd.fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized")
@@ -916,12 +963,12 @@ summary(fit.4.2)
 
 AIC(fit.1,fit.2, fit.3, fit.4.0, fit.4, fit.4.1, fit.4.2) # sd as functional predictor do not seem important
 
-fit<- coef(fit.4.0)
+fit<- coef(fit.4)
 fit$x<- fit$fd.arg * fit$fd.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fd.arg, fit$value, type="l", main="relative")
 
-write.table(fit, file="Results and Figures/mean analysis/fd_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
+write.table(fit, file="Vicia Analysis/Results/FR/fd_means_selection_SD_FUNCTIONAL_PRED.csv", sep = ',', row.names = F)
 
 # try sd as a single (i.e., plant-level) covariate
 
@@ -931,8 +978,8 @@ sd.fd.cov$Group.1<- NULL
 
 fit.N<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") ,family='ziP')
 
-fit.5<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fd.cov)
-              ,family='ziP', method = "GCV.Cp")
+fit.5<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp") + unlist(sd.fd.cov)
+              ,family='poisson')
 
 fit.5.1<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fd.cov)
             + unlist(flw.no),family='ziP')
@@ -951,7 +998,7 @@ summary(fit.5.3)
 
 AIC(fit.N , fit.5, fit.5.1, fit.5.2, fit.5.3)# fit.5 best AIC fit
 
-fit<- coef(fit.5)
+fit<- coef(fit.5.2)
 fit$x<- fit$fd.arg * fit$fd.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fd.arg, fit$value, type="l", main="relative")
