@@ -1,9 +1,21 @@
 
+#home computer
+setwd("C:/Users/mason/Dropbox/git/Vicia/")
 
-library(dplyr)
+#office computer
+setwd("C:/Users/mason.kulbaba/Dropbox/git/Vicia")
+
+data<- read.csv("vicia_final_data.csv")
+
+library(dbplyr)
+library(tidyverse)
 library(glmmTMB)
 library(car)
 library(refund)
+
+## Calculate relative flowering day
+
+data$rel_flw_date<- data$flw_date/17
 
 ################
 means.ind <- data %>%
@@ -66,7 +78,7 @@ means.date <- data %>%
 md<- as.data.frame(means.date)
 
 
-# Use above means in functional regressoin
+# Use above means in functional regression 
 
 #maximum seed set per plant
 seed<- aggregate(data$seeds, by=list(data$PlantID), sum)
@@ -81,29 +93,34 @@ branch.no<- aggregate(data$Branch, by=list(data$PlantID), max)
 branch.no$Group.1<- NULL
 
 
+# Make relative flowering date
+
+mn$rel_flwDate<- mn$flw_date/17
+
+
 # Prepare functional predictors
-B<- mn[c("PlantID","flw_date", "mean_B")]
+B<- mn[c("PlantID","rel_flwDate", "mean_B")]
 
-FL<- mn[c("PlantID","flw_date", "mean_FL")]
+FL<- mn[c("PlantID","rel_flwDate", "mean_FL")]
 
-FD<- mn[c("PlantID","flw_date", "mean_FD")]
+FD<- mn[c("PlantID","rel_flwDate", "mean_FD")]
 
 # Reshape into long-format matrix
-long<- reshape(B, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long<- reshape(B, timevar="rel_flwDate", idvar=c("PlantID"), direction = "wide")
 long$PlantID<- NULL
 long<- as.matrix(long)
 #rename
 banner<-long
 
 # Reshape into long-format matrix
-long<- reshape(FL, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long<- reshape(FL, timevar="rel_flwDate", idvar=c("PlantID"), direction = "wide")
 long$PlantID<- NULL
 long<- as.matrix(long)
 #rename
 fl<-long
 
 # Reshape into long-format matrix
-long<- reshape(FD, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long<- reshape(FD, timevar="rel_flwDate", idvar=c("PlantID"), direction = "wide")
 long$PlantID<- NULL
 long<- as.matrix(long)
 
@@ -134,53 +151,57 @@ sd.b.cov$Group.1<- NULL
 
 
 # Prepare functional predictors
-B.sd<- mn[c("PlantID","flw_date", "sd_B")]
+B.sd<- mn[c("PlantID","rel_flwDate", "sd_B")]
 # Reshape into long-format matrix
-long<- reshape(B.sd, timevar="flw_date", idvar=c("PlantID"), direction = "wide")
+long<- reshape(B.sd, timevar="rel_flwDate", idvar=c("PlantID"), direction = "wide")
 long$PlantID<- NULL
 long<- as.matrix(long)
 #rename
 sd.banner<-long
 
-fit.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
+fit.1<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp", transform = "standardized")
           ,family='poisson')
 
-fit.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+fit.2<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp") + unlist(sd.b.cov)
           ,family='poisson')
 
-fit.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + 
+fit.3<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp", transform = "standardized") + 
             lf.vd(sd.banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized")
           ,family='poisson')
 
 AIC(fit.1, fit.2, fit.3)
 summary(fit.2)
 
-fit.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+fit.2<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp") + unlist(sd.b.cov)
             ,family='poisson')
 
-fit.2.1<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov) +unlist(flw.no)
+fit.2.1<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp") + unlist(sd.b.cov) +unlist(flw.no)
             ,family='poisson')
 
-fit.2.2<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+fit.2.2<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
               +unlist(branch.no)
             ,family='poisson')
 
-fit.2.3<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+fit.2.3<- pfr(seed ~ lf.vd(banner,  basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
               +unlist(branch.no) + unlist(flw.no)
               ,family='poisson')
 
-fit.2.4<- pfr(seed ~ lf.vd(banner, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
+fit.2.4<- pfr(seed ~ lf.vd(banner, basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.b.cov)
               +unlist(branch.no):unlist(flw.no)
               ,family='poisson')
 
 AIC(fit.2, fit.2.1, fit.2.2, fit.2.3, fit.2.4)
-summary(fit.2.4)
+summary(fit.2.1)
+summary(fit.2)
 
-fit<- coef(fit.2.4)
+fit<- coef(fit.2.1)
 fit$x<- fit$banner.arg * fit$banner.vd
+fit$Z<- fit$value/fit$se
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$banner.arg, fit$value, type="l", main="relative")
+plot(fit$banner.arg, fit$Z, type="l", main="Z-Scores")
 
+write.table(fit, file="C:/Users/mason/Dropbox/git/Vicia/Vicia Analysis/Results/FR/mean_banner_rel_flw.csv", sep=",", row.names = F)
 
 #######################
 #######################
@@ -212,32 +233,34 @@ fit.3<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", tra
 AIC(fit.1, fit.2, fit.3)
 summary(fit.3)
 
-fit.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
+fit.2<- pfr(seed ~ lf.vd(fl,  basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
             ,family='poisson')
 
-fit.2.1<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov) +unlist(flw.no)
+fit.2.1<- pfr(seed ~ lf.vd(fl,  basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov) +unlist(flw.no)
               ,family='poisson')
 
-fit.2.2<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
+fit.2.2<- pfr(seed ~ lf.vd(fl, basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
               +unlist(branch.no)
               ,family='poisson')
 
-fit.2.3<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
+fit.2.3<- pfr(seed ~ lf.vd(fl, basistype = "s", bs = "tp",transform = "standardized") + unlist(sd.fl.cov)
               +unlist(branch.no) + unlist(flw.no)
               ,family='poisson')
 
-fit.2.4<- pfr(seed ~ lf.vd(fl, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
+fit.2.4<- pfr(seed ~ lf.vd(fl,  basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fl.cov)
               +unlist(branch.no):unlist(flw.no)
               ,family='poisson')
 
 AIC(fit.2, fit.2.1, fit.2.2, fit.2.3, fit.2.4)
-summary(fit.2.4)
+summary(fit.2.1)
+summary(fit.2.3)
 
-fit<- coef(fit.2.4)
+fit<- coef(fit.2.1)
 fit$x<- fit$fl.arg * fit$fl.vd
+fit$Z<- fit$value/fit$se
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fl.arg, fit$value, type="l", main="relative")
-
+plot(fit$fl.arg, fit$Z, type="l", main="Z-score")
 
 #######################
 #######################
@@ -267,7 +290,7 @@ fit.3<- pfr(seed ~ lf.vd(fd) +
             ,family='poisson')
 
 AIC(fit.1, fit.2, fit.3)
-summary(fit.3)
+summary(fit.2)
 
 fit.2<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp", transform = "standardized") + unlist(sd.fd.cov)
             ,family='poisson')
@@ -288,9 +311,9 @@ fit.2.4<- pfr(seed ~ lf.vd(fd, vd=unlist(flw_day), basistype = "s", bs = "tp", t
               ,family='poisson')
 
 AIC(fit.2, fit.2.1, fit.2.2, fit.2.3, fit.2.4)
-summary(fit.2.4)
+summary(fit.2.3)
 
-fit<- coef(fit.2.4)
+fit<- coef(fit.2.3)
 fit$x<- fit$fd.arg * fit$fd.vd
 plot(fit$x, fit$value, type="l", main="absolute")
 plot(fit$fd.arg, fit$value, type="l", main="relative")
